@@ -1,0 +1,150 @@
+# FaultLens equipment profile: wall-mounted split air conditioner (single-zone inverter or fixed-speed).
+# Written for FaultLens from general HVAC service practice. Not copied from any manual.
+# Numbers assume a 1.5-ton R-32 unit in about 35 C outdoor air. Adjust for your unit.
+
+equipment: Split air conditioner (indoor wall unit + outdoor condensing unit)
+
+# Short noun phrases sent to SAM 3.1, one call each.
+parts_to_find:
+  - air filter
+  - evaporator coil
+  - indoor fan
+  - outdoor fan
+  - condenser coil
+  - capacitor
+  - display panel
+  - copper pipe
+
+# Normal operating ranges for the sensor channels used by the synthetic logs.
+normal_ranges:
+  return_air_c: [24, 29]
+  supply_air_c: [11, 16]
+  delta_t_c: [9, 15]
+  outdoor_air_c: [25, 42]
+  suction_psig: [115, 145]
+  discharge_psig: [320, 430]
+  compressor_amps: [4.5, 8.5]
+  outdoor_fan_amps: [0.35, 0.9]
+  room_sensor_offset_c: [-1.5, 1.5]   # controller reading minus measured return air
+
+faults:
+  normal:
+    title: No fault found
+    summary: Readings, sound and temperatures all match a healthy unit.
+    sensor_signature: All readings inside their normal ranges.
+    visual_signs: [clean filters, dry indoor coil, outdoor fan turning steadily]
+    checks:
+      - id: recheck_complaint
+        do: Ask when the problem happens (time of day, mode, outdoor heat) and re-test under those conditions.
+        expect_if_fault: The problem only appears under specific conditions; capture readings then.
+        needs_power_isolation: false
+    fix: No repair needed now. Advise the customer and re-test if the problem returns.
+
+  clogged_air_filter:
+    title: Clogged indoor air filter
+    summary: Dust-blocked filter starves the indoor coil of air, so the coil runs too cold and capacity drops.
+    sensor_signature: Very cold supply air, large temperature drop across the coil, low suction pressure, compressor current normal or slightly low.
+    visual_signs: [grey dust mat on filter mesh, frost or ice on the indoor coil, weak airflow from the louvres]
+    checks:
+      - id: inspect_filter
+        do: Open the front panel and pull out the filters. Hold them up to light.
+        expect_if_fault: Light barely passes through; visible dust layer.
+        needs_power_isolation: false
+      - id: check_coil_ice
+        do: Look at the indoor coil face with a torch.
+        expect_if_fault: Frost or ice on the coil fins.
+        needs_power_isolation: false
+    fix: Clean or replace filters; let any ice melt fully before restarting.
+
+  condenser_fan_failure:
+    title: Outdoor (condenser) fan not running
+    summary: Without outdoor airflow the refrigerant cannot reject heat; head pressure climbs until the unit trips.
+    sensor_signature: Outdoor fan current near zero, very high discharge pressure, high compressor current, repeated high-pressure trips, poor cooling.
+    visual_signs: [outdoor fan blade stationary while compressor runs, hot air not leaving the outdoor unit, burnt smell near fan motor]
+    checks:
+      - id: watch_outdoor_fan
+        do: With the unit running, watch the outdoor fan blade for 30 seconds.
+        expect_if_fault: Blade does not turn, or turns slowly and stops.
+        needs_power_isolation: false
+      - id: spin_blade_test
+        do: With power isolated, spin the blade by hand.
+        expect_if_fault: Blade is stiff or seized (bearing), or spins freely (motor or capacitor fault).
+        needs_power_isolation: true
+      - id: fan_capacitor_check
+        do: Discharge and measure the fan motor capacitor with a meter.
+        expect_if_fault: Capacitance well below the rating printed on its label.
+        needs_power_isolation: true
+    fix: Replace the fan capacitor or the fan motor, whichever failed.
+
+  low_refrigerant:
+    title: Low refrigerant charge (leak)
+    summary: Not enough refrigerant in the circuit, almost always because of a leak.
+    sensor_signature: Low suction and low discharge pressure, low compressor current, small temperature drop across the coil.
+    visual_signs: [oily residue at flare joints or service valves, frost only on part of the indoor coil, frost on the thin liquid line at the outdoor unit]
+    checks:
+      - id: inspect_joints
+        do: Look at both flare nuts on the outdoor service valves and at the indoor unit joints.
+        expect_if_fault: Oily, dust-caked residue around a joint.
+        needs_power_isolation: false
+      - id: gauge_pressures
+        do: Connect gauges to the service port and compare suction pressure with the normal range.
+        expect_if_fault: Suction pressure well below normal.
+        needs_power_isolation: false
+        certified_only: true
+    fix: Find and repair the leak, pull a vacuum, recharge by weight. Certified technician only.
+
+  dirty_condenser_coil:
+    title: Dirty outdoor (condenser) coil
+    summary: Dirt and debris on the outdoor fins block airflow, raising head pressure and current.
+    sensor_signature: High discharge pressure and high compressor current while the outdoor fan current is normal.
+    visual_signs: [dust, lint or leaves packed into outdoor coil fins, bent fins over large areas, unit boxed in with no clearance]
+    checks:
+      - id: inspect_condenser_fins
+        do: Shine a torch through the outdoor coil from the fan side.
+        expect_if_fault: Little light passes; visible dirt mat on the fins.
+        needs_power_isolation: false
+    fix: Power off, then wash the coil from the inside out with low-pressure water and coil cleaner.
+
+  failed_compressor_capacitor:
+    title: Failed compressor run capacitor
+    summary: The compressor motor cannot start without its capacitor, so it hums and trips on overload.
+    sensor_signature: Compressor current spikes very high for a few seconds then drops to zero, pressures stay equal, outdoor fan runs, no cooling.
+    visual_signs: [bulged or leaking capacitor top, burn marks on capacitor terminals, loud hum from the outdoor unit then a click]
+    checks:
+      - id: listen_compressor
+        do: Stand by the outdoor unit when the compressor should start.
+        expect_if_fault: Hum for a few seconds, then a click and silence; fan keeps running.
+        needs_power_isolation: false
+      - id: inspect_capacitor
+        do: With power isolated, remove the outdoor unit side cover and look at the capacitor.
+        expect_if_fault: Domed top, oil leak or scorch marks.
+        needs_power_isolation: true
+      - id: measure_capacitor
+        do: Discharge the capacitor safely and measure capacitance.
+        expect_if_fault: Reading more than 10% below the rated value on the label.
+        needs_power_isolation: true
+    fix: Replace with a capacitor of the same rating and voltage.
+
+  faulty_room_thermistor:
+    title: Faulty indoor room-temperature sensor
+    summary: The indoor controller reads the room as colder than it is, so it never calls for cooling.
+    sensor_signature: Controller's room reading is far below the measured return air; compressor stays off while the indoor fan runs; pressures equal.
+    visual_signs: [sensor lead pulled off its clip near the indoor coil, damaged or corroded sensor head, display showing a room reading that does not match a thermometer]
+    checks:
+      - id: compare_thermometer
+        do: Hold a reference thermometer at the indoor unit air intake and compare with the room temperature the unit reports.
+        expect_if_fault: Difference of more than 3 C.
+        needs_power_isolation: false
+      - id: measure_thermistor
+        do: With power isolated, unplug the room sensor and measure its resistance.
+        expect_if_fault: Resistance outside the table for the current temperature, or open circuit.
+        needs_power_isolation: true
+    fix: Refit the sensor in its clip, or replace it.
+
+safety_rules:
+  power_isolation: >-
+    Before this step: switch off the unit at the isolator and the breaker, confirm zero volts at the
+    outdoor unit terminals with a tester, and discharge any capacitor before touching it.
+  certified_only: >-
+    This step involves refrigerant handling. It must be done by a certified refrigerant technician
+    with recovery equipment.

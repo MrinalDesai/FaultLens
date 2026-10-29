@@ -1,0 +1,39 @@
+"""Central settings. Everything comes from environment variables (.env)."""
+
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+META_BASE_URL = os.getenv("META_BASE_URL", "https://api.meta.ai/v1")
+MODEL_API_KEY = os.getenv("MODEL_API_KEY", "")
+
+# Main reasoning agent. Free hackathon credits are billed like the contributor tier.
+AGENT_MODEL = os.getenv("AGENT_MODEL", "muse-spark-1.3")
+
+# Part finding and tracking.
+SAM_MODEL = os.getenv("SAM_MODEL", "sam-3.1")
+
+# Speech to text (recorded WAV files).
+VOICE_MODEL = os.getenv("VOICE_MODEL", "muse-voice-transcribe-1.0")
+
+# Independent checker. Leave CHECKER_BASE_URL empty to use Muse Spark on Meta's API.
+# To use Muse Spark Open on a partner (Baseten, Modal, Fireworks), set all three.
+CHECKER_BASE_URL = os.getenv("CHECKER_BASE_URL", "")
+CHECKER_API_KEY = os.getenv("CHECKER_API_KEY", "")
+CHECKER_MODEL = os.getenv("CHECKER_MODEL", "")
+if not CHECKER_API_KEY or CHECKER_API_KEY.startswith("your-"):
+    # No real partner key yet: run the checker on Meta's API instead.
+    CHECKER_BASE_URL = CHECKER_API_KEY = CHECKER_MODEL = ""
+
+# Which equipment profile to load from faultlens/knowledge/<name>.yaml
+EQUIPMENT_PROFILE = os.getenv("EQUIPMENT_PROFILE", "split_ac")
+
+# Offline mode: no API calls, canned answers. For building the UI and tests
+# while the API account is unavailable. Never use for results you report.
+MOCK = os.getenv("FAULTLENS_MOCK", "0") == "1"
+
+# Agent loop limits.
+MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "6"))
+KEYFRAMES_PER_VIDEO = int(os.getenv("KEYFRAMES_PER_VIDEO", "4"))

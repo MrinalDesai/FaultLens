@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FaultLens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #EEF0EC;
+  --surface: #FFFFFF;
+  --ink: #16222B;
+  --ink-soft: #4E5C66;
+  --rule: #C9CFD2;
+  --low: #1E63C6;      /* gauge low side */
+  --high: #C8372D;     /* gauge high side */
+  --tag: #F3C623;      /* safety tag */
+  --ok: #2F7D4F;
+  --radius-s: 4px;
+  --radius-m: 8px;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 16px/1.5 "Barlow", system-ui, sans-serif;
+}
+h1, h2, h3 { font-family: "Barlow Semi Condensed", "Barlow", sans-serif; line-height: 1.15; margin: 0; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: .01em; }
+h2 { font-size: 1.25rem; font-weight: 600; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--low); outline-offset: 2px; }
+
+/* top bar */
+.bar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 24px; background: var(--ink); color: #fff;
+}
+.bar .unit { color: #B9C4CB; font-size: .95rem; }
+.bar nav { margin-left: auto; display: flex; gap: 4px; }
+.bar nav button {
+  background: none; border: 0; color: #B9C4CB; padding: 6px 12px; border-radius: var(--radius-s); cursor: pointer;
+}
+.bar nav button[aria-pressed="true"] { color: #fff; background: rgba(255,255,255,.12); }
+.mode { font-size: .85rem; padding: 2px 8px; border: 1px solid var(--tag); color: var(--tag); border-radius: var(--radius-s); }
+
+main { max-width: 1240px; margin: 0 auto; padding: 24px; }
+.layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } main { padding: 16px; } }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 20px; }
+.layout > * { min-width: 0; }
+.evidence { position: sticky; top: 16px; display: grid; gap: 20px; }
+@media (max-width: 960px) { .evidence { position: static; } }
+.field { display: grid; gap: 8px; }
+.field > label, .field > .label { font-weight: 600; }
+.hint { color: var(--ink-soft); font-size: .9rem; }
+
+.drop {
+  display: grid; place-items: center; text-align: center; gap: 4px;
+  border: 2px dashed var(--rule); border-radius: var(--radius-m); padding: 18px; cursor: pointer;
+}
+.drop:hover, .drop.over { border-color: var(--low); }
+.thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.thumbs span { font-size: .85rem; background: var(--ground); padding: 2px 8px; border-radius: var(--radius-s); }
+
+select, textarea, input[type=text] {
+  width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 8px 10px; background: #fff;
+}
+textarea { font-size: .8rem; min-height: 90px; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; color: var(--ink-soft); font-size: .9rem; }
+
+.row { display: flex; gap: 8px; }
+.row > input { flex: 1; }
+.btn {
+  border: 1px solid var(--ink); background: #fff; border-radius: var(--radius-s);
+  padding: 8px 14px; cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.btn:hover { background: var(--ground); }
+.btn.primary { background: var(--ink); color: #fff; width: 100%; padding: 12px; font-size: 1.05rem; }
+.btn.primary:hover { background: #24343F; }
+.btn.rec { border-color: var(--high); color: var(--high); }
+.btn.rec[aria-pressed="true"] { background: var(--high); color: #fff; }
+.btn:disabled { opacity: .5; cursor: progress; }
+
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.notes li { display: flex; gap: 8px; align-items: start; background: var(--ground); padding: 6px 10px; border-radius: var(--radius-s); }
+.notes li span { flex: 1; }
+.notes li button { border: 0; background: none; color: var(--ink-soft); cursor: pointer; }
+.toggles { display: grid; gap: 6px; }
+.toggles label { display: flex; gap: 8px; align-items: center; }
+
+/* pipeline: a real sequence, so connected stages */
+.pipeline { display: flex; align-items: stretch; gap: 0; margin-bottom: 20px; overflow-x: auto; }
+.stage {
+  flex: 1; min-width: 120px; padding: 10px 12px; border: 1px solid var(--rule); background: var(--surface);
+  margin-left: -1px; font-size: .9rem;
+}
+.stage:first-child { border-radius: var(--radius-m) 0 0 var(--radius-m); margin-left: 0; }
+.stage:last-child { border-radius: 0 var(--radius-m) var(--radius-m) 0; }
+.stage b { display: block; font-family: "Barlow Semi Condensed", sans-serif; font-size: 1rem; }
+.stage small { color: var(--ink-soft); }
+.stage[data-state="running"] { border-color: var(--low); box-shadow: inset 0 -3px 0 var(--low); }
+.stage[data-state="done"] { box-shadow: inset 0 -3px 0 var(--ok); }
+.stage[data-state="skipped"] { color: var(--ink-soft); background: transparent; }
+
+.empty { padding: 48px 24px; text-align: center; color: var(--ink-soft); }
+.empty h2 { color: var(--ink); margin-bottom: 8px; }
+
+.results { display: grid; gap: 20px; }
+.headline { display: grid; gap: 6px; }
+.headline .status { font-weight: 600; }
+.headline .status.confident { color: var(--ok); }
+.headline .status.more { color: #8A6A00; }
+.headline p.summary { font-size: 1.15rem; }
+
+.frames { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.frames figure { margin: 0; }
+.frames img { width: 100%; border-radius: var(--radius-s); display: block; border: 1px solid var(--rule); }
+.frames figcaption { font-size: .85rem; color: var(--ink-soft); margin-top: 4px; }
+
+.causes { display: grid; gap: 10px; }
+.cause { border: 1px solid var(--rule); border-radius: var(--radius-m); background: var(--surface); }
+.cause > button {
+  width: 100%; text-align: left; background: none; border: 0; padding: 12px 14px; cursor: pointer;
+  display: grid; grid-template-columns: 56px 1fr; gap: 4px 12px; align-items: center;
+}
+.cause .pct { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.4rem; font-weight: 700; grid-row: span 2; }
+.cause .meter { height: 6px; background: var(--ground); border-radius: 3px; overflow: hidden; }
+.cause .meter i { display: block; height: 100%; background: var(--ink-soft); }
+.cause:first-child .meter i { background: var(--low); }
+.cause .why { padding: 0 14px 14px 82px; display: none; gap: 10px; }
+.cause[data-open="true"] .why { display: grid; }
+.why ul { margin: 4px 0 0; padding-left: 18px; }
+.why .against { color: var(--ink-soft); }
+
+/* hang-tag: the one bold element */
+.tag {
+  position: relative; background: var(--tag); color: var(--ink);
+  padding: 16px 18px 16px 52px; border-radius: var(--radius-s) var(--radius-m) var(--radius-m) var(--radius-s);
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+}
+.tag::before {
+  content: ""; position: absolute; left: 20px; top: 50%; width: 14px; height: 14px; margin-top: -7px;
+  border-radius: 50%; background: var(--ground); box-shadow: inset 0 0 0 3px rgba(22,34,43,.35);
+}
+.tag h3 { margin-bottom: 4px; }
+.tag.danger { background: var(--high); color: #fff; }
+.tag.danger::before { box-shadow: inset 0 0 0 3px rgba(255,255,255,.5); }
+.tag .answer { display: flex; gap: 8px; margin-top: 12px; }
+.tag .answer input { flex: 1; border-color: rgba(22,34,43,.35); }
+
+.check { border-left: 4px solid var(--ink); padding: 4px 0 4px 14px; display: grid; gap: 4px; }
+.verdict { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.verdict b.accept { color: var(--ok); }
+.verdict b.reject { color: var(--high); }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--ink-soft); }
+td.low { color: var(--low); font-weight: 600; }
+td.high { color: var(--high); font-weight: 600; }
+
+.rounds { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; color: var(--ink-soft); font-size: .9rem; }
+.rounds button { border: 1px solid var(--rule); background: #fff; border-radius: var(--radius-s); padding: 2px 10px; cursor: pointer; }
+.rounds button[aria-current="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+
+.error { background: #FBE9E7; border: 1px solid var(--high); color: #7A1F18; padding: 12px 14px; border-radius: var(--radius-s); }
+pre.trace { background: var(--ground); padding: 12px; border-radius: var(--radius-s); overflow: auto; font-size: .8rem; max-height: 320px; }
+
+.evalgrid { display: grid; gap: 20px; }
+.score { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.3rem; font-weight: 700; }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cause .meter i { transition: width .6s ease-out; }
+}
+
+/* ---------- explore ---------- */
+.explore { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+.explore > * { min-width: 0; }
+@media (max-width: 960px) { .explore { grid-template-columns: 1fr; } }
+.conditions { display: grid; gap: 6px; position: sticky; top: 16px; }
+@media (max-width: 960px) { .conditions { position: static; } }
+.conditions button {
+  text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m);
+  padding: 10px 12px; cursor: pointer; display: grid; gap: 2px;
+}
+.conditions button[aria-current="true"] { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--ink); }
+.conditions small { color: var(--ink-soft); }
+.detail { display: grid; gap: 20px; }
+.samples { display: flex; gap: 6px; flex-wrap: wrap; }
+.samples button { border: 1px solid var(--rule); background: #fff; border-radius: var(--radius-s); padding: 4px 12px; cursor: pointer; }
+.samples button[aria-current="true"] { border-color: var(--ink); font-weight: 600; }
+.signals { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.signal { display: grid; gap: 8px; align-content: start; }
+.signal img { width: 100%; border-radius: var(--radius-s); display: block; }
+.signal audio { width: 100%; }
+.source { font-size: .8rem; padding: 1px 7px; border-radius: var(--radius-s); border: 1px solid var(--rule); color: var(--ink-soft); white-space: nowrap; }
+.source.simulated { border-color: #8A6A00; color: #8A6A00; }
+.source.real-photo { border-color: var(--ok); color: var(--ok); }
+.source.muse-image { border-color: var(--low); color: var(--low); }
+.sighead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.downloads { display: flex; gap: 12px; flex-wrap: wrap; font-size: .9rem; }
+.downloads a { color: var(--low); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.actions .btn.primary { width: auto; }
+
+/* ---------- pattern match ---------- */
+.pm { display: grid; gap: 14px; }
+.bars { display: grid; gap: 6px; }
+.bar-row { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr 48px; gap: 10px; align-items: center; font-size: .95rem; }
+.bar-row .track { height: 8px; background: var(--ground); border-radius: 4px; overflow: hidden; }
+.bar-row .track i { display: block; height: 100%; background: var(--ink-soft); }
+.bar-row:first-child .track i { background: var(--low); }
+.bar-row:first-child { font-weight: 600; }
+td.agree { color: var(--ok); }
+td.disagree { color: var(--high); }
+.why-list { margin: 0; padding-left: 16px; font-size: .88rem; color: var(--ink-soft); }
+.received { margin: 0; padding-left: 18px; font-size: .9rem; color: var(--ink-soft); }
+.lib-pick { display: grid; gap: 6px; }
+.scroll { overflow-x: auto; }
+.detail > *, .results > * { min-width: 0; }
+@media (max-width: 600px) { .bar-row { grid-template-columns: 1fr 1fr 40px; } .signals { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <h1>FaultLens</h1>
+  <span class="unit" id="unit">Loading…</span>
+  <span class="mode" id="mode" hidden>Offline mode: canned answers</span>
+  <nav aria-label="Views">
+    <button type="button" data-view="explore" aria-pressed="true">Explore faults</button>
+    <button type="button" data-view="investigate" aria-pressed="false">Investigate</button>
+    <button type="button" data-view="testset" aria-pressed="false">How it was tested</button>
+  </nav>
+</header>
+
+<main>
+  <!-- EXPLORE -->
+  <section id="view-explore" class="explore">
+    <div>
+      <div class="conditions" id="conditions" role="list"></div>
+      <p class="hint" style="margin-top:12px">Every fault has the same four signals, so you can compare them side by side.</p>
+    </div>
+    <div class="detail" id="detail">
+      <div class="panel empty"><h2>Loading the reference library</h2></div>
+    </div>
+  </section>
+
+  <!-- INVESTIGATE -->
+  <section id="view-investigate" class="layout" hidden>
+    <form class="panel evidence" id="evidence" novalidate>
+      <h2>Evidence</h2>
+
+      <div class="field">
+        <span class="label">Files from the unit</span>
+        <label class="drop" id="drop">
+          <input type="file" id="media" multiple hidden
+                 accept=".wav,.csv,.png,.jpg,.jpeg,.webp,.mp4,.mov,audio/wav,image/*,video/*">
+          <span>Choose or drop files</span>
+          <span class="hint">Sound (.wav), thermal images (.png), sensor log (.csv), photos or video</span>
+        </label>
+        <ul class="received" id="mediaList"></ul>
+      </div>
+
+      <div class="field lib-pick">
+        <label for="libSample">Or start from a library sample</label>
+        <select id="libSample"><option value="">None</option></select>
+      </div>
+
+      <details>
+        <summary>Paste a sensor log instead</summary>
+        <textarea id="csv" spellcheck="false" placeholder="minute,return_air_c,supply_air_c,…"></textarea>
+      </details>
+
+      <div class="field">
+        <span class="label">What you see, hear or measure</span>
+        <div class="row">
+          <input type="text" id="noteText" placeholder="e.g. outdoor unit hums then clicks" aria-label="Observation">
+          <button type="button" class="btn" id="addNote">Add</button>
+        </div>
+        <button type="button" class="btn rec" id="rec" aria-pressed="false">Record a voice note</button>
+        <ul class="notes" id="notes"></ul>
+      </div>
+
+      <div class="toggles">
+        <label><input type="checkbox" id="findParts" checked> Find parts in photos (SAM 3.1)</label>
+        <label><input type="checkbox" id="useChecker" checked> Have a second model check the diagnosis</label>
+      </div>
+
+      <button type="submit" class="btn primary" id="go">Investigate</button>
+    </form>
+
+    <div>
+      <div class="pipeline" id="pipeline" aria-label="Investigation steps">
+        <div class="stage" data-stage="voice"><b>Voice</b><small>Muse Voice Transcribe</small></div>
+        <div class="stage" data-stage="parts"><b>Find parts</b><small>SAM 3.1</small></div>
+        <div class="stage" data-stage="pattern"><b>Match patterns</b><small>fusion model</small></div>
+        <div class="stage" data-stage="agent"><b>Reason</b><small>Muse Spark</small></div>
+        <div class="stage" data-stage="safety"><b>Safety rules</b><small>fixed code</small></div>
+        <div class="stage" data-stage="checker"><b>Check</b><small id="checkerModel">second model</small></div>
+      </div>
+      <div id="out">
+        <div class="panel empty">
+          <h2>Start with what you have</h2>
+          <p>Upload what you recorded at the unit, or pick a library sample, then press Investigate.<br>
+             FaultLens compares it with the fault signatures, explains the match and says what to check next.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTED -->
+  <section id="view-testset" hidden>
+    <div class="panel evalgrid" id="patternReport">
+      <h2>Pattern model</h2>
+      <p class="hint">Loading…</p>
+    </div>
+    <div class="panel evalgrid" style="margin-top:20px">
+      <div>
+        <h2>Full investigation on the test set</h2>
+        <p class="hint">Sensor logs plus a technician's note, written in plain field language. In the hard half the fault is mild and one key sensor is missing.</p>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <label class="row" style="align-items:center">Cases
+          <select id="evalLimit" style="width:auto">
+            <option value="7">7 (one per condition)</option>
+            <option value="14" selected>14 (easy and hard per condition)</option>
+            <option value="28">All 28</option>
+          </select>
+        </label>
+        <button type="button" class="btn" id="runEval">Run the test set</button>
+      </div>
+      <p class="hint">Each case makes up to three calls to Meta's models (sensors only, full evidence, checker).</p>
+      <div id="evalOut"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = x => x == null ? "–" : Math.round(x * 100) + "%";
+const state = { files: [], notes: [], rounds: [], shown: -1, titles: {}, library: [], cond: null, sample: null };
+const SIGNAL_NAMES = { sound: "Sound", thermal_indoor: "Thermal, indoor coil", thermal_outdoor: "Thermal, outdoor unit", sensors: "Sensor log" };
+const SOURCE_TEXT = { simulated: "Simulated", "real-photo": "Real photo", chatgpt: "Generated (ChatGPT)", "muse-image": "Generated (Muse Image)", unlabelled: "Source not recorded" };
+const title = c => state.titles[c] || c;
+
+/* ---------- views ---------- */
+function showView(name) {
+  document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
+  ["explore", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  if (name === "testset") loadReport();
+}
+document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+
+/* ---------- profile + library ---------- */
+fetch("/api/profile").then(r => r.json()).then(p => {
+  $("#unit").textContent = p.equipment;
+  $("#mode").hidden = !p.mock;
+  $("#checkerModel").textContent = p.models.checker;
+  p.faults.forEach(f => state.titles[f.fault_id] = f.title);
+  return fetch("/api/library").then(r => r.json());
+}).then(lib => {
+  state.library = lib.conditions;
+  renderConditions();
+  const first = state.library.find(c => c.samples.length);
+  if (first) selectCondition(first.condition); else $("#detail").innerHTML =
+    `<div class="panel empty"><h2>The library is empty</h2><p>Build it with <code>python -m faultlens.library</code>, then reload.</p></div>`;
+  for (const c of state.library) for (const s of c.samples)
+    $("#libSample").insertAdjacentHTML("beforeend", `<option value="${esc(c.condition)}/${esc(s.id)}">${esc(c.title)}, ${esc(sampleLabel(s, c.condition))}</option>`);
+}).catch(() => $("#unit").textContent = "Server not reachable. Is web/server.py running?");
+
+function sampleLabel(s, cond) {
+  const n = "Sample " + parseInt(s.id.split("_").pop(), 10);
+  if (cond === "normal" || s.severity == null) return n;
+  return s.severity >= 0.999 ? `${n}, full fault` : `${n}, ${Math.round(s.severity * 100)}% severity`;
+}
+
+function renderConditions() {
+  $("#conditions").innerHTML = state.library.map(c => `
+    <button type="button" role="listitem" data-c="${esc(c.condition)}" aria-current="${c.condition === state.cond}">
+      <b>${esc(c.title)}</b>
+      <small>${c.samples.length} sample${c.samples.length === 1 ? "" : "s"}${c.photos.length ? `, ${c.photos.length} photo${c.photos.length === 1 ? "" : "s"}` : ""}</small>
+    </button>`).join("");
+  $("#conditions").querySelectorAll("button").forEach(b => b.addEventListener("click", () => selectCondition(b.dataset.c)));
+}
+
+function selectCondition(cond) {
+  state.cond = cond;
+  renderConditions();
+  const c = state.library.find(x => x.condition === cond);
+  state.sample = c.samples[0]?.id || null;
+  renderDetail();
+}
+
+async function renderDetail() {
+  const c = state.library.find(x => x.condition === state.cond);
+  const s = c.samples.find(x => x.id === state.sample);
+  const photos = c.photos.length
+    ? `<div class="frames">${c.photos.map(p => `<figure><img src="${esc(p.url)}" alt="${esc(c.title)} photo">
+         <figcaption><span class="source ${esc(p.source)}">${esc(SOURCE_TEXT[p.source] || p.source)}</span></figcaption></figure>`).join("")}</div>`
+    : `<p class="hint">No photos yet. Put images in <code>library/${esc(c.condition)}/photos/</code> and record where each came from in <code>photos.json</code>.</p>`;
+
+  $("#detail").innerHTML = `
+    <div class="panel" style="display:grid;gap:10px">
+      <h2>${esc(c.title)}</h2>
+      <p>${esc(c.summary)}</p>
+      ${c.samples.length ? `<div class="samples" role="tablist">${c.samples.map(x =>
+        `<button type="button" role="tab" data-s="${esc(x.id)}" aria-current="${x.id === state.sample}">${esc(sampleLabel(x, c.condition))}</button>`).join("")}</div>` : ""}
+    </div>
+    <div class="panel" id="sampleBody"><p class="hint">Loading sample…</p></div>
+    <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault</h3>${photos}</div>`;
+  $("#detail").querySelectorAll(".samples button").forEach(b => b.addEventListener("click", () => { state.sample = b.dataset.s; renderDetail(); }));
+  if (!s) { $("#sampleBody").innerHTML = `<p class="hint">No samples for this condition.</p>`; return; }
+
+  const r = await fetch(`/api/library/${encodeURIComponent(c.condition)}/${encodeURIComponent(s.id)}`);
+  const body = await r.json();
+  if (!r.ok) { $("#sampleBody").innerHTML = `<div class="error">${esc(body.detail)}</div>`; return; }
+  const src = k => `<span class="source ${esc(s.sources[k] || "")}">${esc(SOURCE_TEXT[s.sources[k]] || s.sources[k] || "")}</span>`;
+  $("#sampleBody").innerHTML = `
+    <div style="display:grid;gap:20px">
+      <div class="signals">
+        <div class="signal"><div class="sighead"><h3>Sound at the outdoor unit</h3>${src("sound")}</div>
+          <audio controls preload="none" src="${esc(s.files.sound)}"></audio>
+          <img src="${body.views.spectrogram}" alt="Spectrogram: time left to right, pitch bottom to top">
+          <p class="hint">Time left to right, pitch bottom to top, brighter is louder.</p></div>
+        <div class="signal"><div class="sighead"><h3>Thermal, indoor coil</h3>${src("thermal_indoor")}</div>
+          <img src="${body.views.thermal_indoor}" alt="Thermal image of the indoor coil"></div>
+        <div class="signal"><div class="sighead"><h3>Thermal, outdoor unit</h3>${src("thermal_outdoor")}</div>
+          <img src="${body.views.thermal_outdoor}" alt="Thermal image of the outdoor unit">
+          <p class="hint">Coil on the left; compressor (round) and capacitor (small block) on the right.</p></div>
+      </div>
+      <div><div class="sighead"><h3>Sensor log</h3>${src("sensors")}</div>${sensorTable(body.sensor_summary, true)}</div>
+      ${patternBlock(body.pattern_match, body.pattern_note, "What the pattern model sees in this sample")}
+      <p class="hint">${esc(body.info.note || "")}</p>
+      <div class="actions">
+        <button type="button" class="btn primary" id="investigateSample">Investigate this sample</button>
+        <div class="downloads">Download:
+          <a href="${esc(s.files.sound)}" download>sound.wav</a>
+          <a href="${esc(s.files.thermal_indoor)}" download>thermal_indoor.png</a>
+          <a href="${esc(s.files.thermal_outdoor)}" download>thermal_outdoor.png</a>
+          <a href="${esc(s.files.sensors)}" download>sensors.csv</a>
+        </div>
+      </div>
+      <p class="hint">Download these, change nothing or swap in your own recording, and upload them under Investigate. That is the same path a technician uses in the field.</p>
+    </div>`;
+  $("#investigateSample").addEventListener("click", () => {
+    $("#libSample").value = `${c.condition}/${s.id}`;
+    state.files = []; renderFileList();
+    showView("investigate");
+    $("#go").click();
+  });
+}
+
+/* ---------- pattern match block (shared) ---------- */
+function patternBlock(pm, note, heading = "Pattern match") {
+  if (!pm) return note ? `<div class="pm"><h3>${esc(heading)}</h3><p class="hint">${esc(note)}</p></div>` : "";
+  const bars = pm.fused.slice(0, 4).map(f => `
+    <div class="bar-row"><span>${esc(title(f.condition))}</span>
+      <span class="track"><i style="width:${f.probability * 100}%"></i></span><span class="num">${pct(f.probability)}</span></div>`).join("");
+  const rows = Object.entries(pm.signals).map(([m, v]) => `
+    <tr><td>${esc(SIGNAL_NAMES[m] || m)}</td><td>${esc(title(v.top))}</td><td class="num">${pct(v.confidence)}</td>
+      <td class="${v.agrees_with_fused ? "agree" : "disagree"}">${v.agrees_with_fused ? "Agrees" : "Disagrees"}</td>
+      <td>${v.key_measurements.length ? `<ul class="why-list">${v.key_measurements.map(k =>
+        `<li>${esc(k.measure)}: <b>${k.value}</b> (healthy about ${k.healthy_typical})</li>`).join("")}</ul>` : `<span class="hint">Nothing unusual</span>`}</td></tr>`).join("");
+  const missing = pm.signals_missing.length ? `<p class="hint">Not provided: ${esc(pm.signals_missing.map(m => SIGNAL_NAMES[m] || m).join(", "))}</p>` : "";
+  return `<div class="pm">
+    <h3>${esc(heading)}</h3>
+    <div class="bars">${bars}</div>
+    <div class="scroll"><table><thead><tr><th>Signal</th><th>Best match on its own</th><th>Confidence</th><th>Combined answer</th><th>Why</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${missing}
+    <p class="hint">Trained on simulated reference signatures: ${esc(pm.trained_on)}.</p>
+  </div>`;
+}
+
+/* ---------- files ---------- */
+const drop = $("#drop");
+$("#media").addEventListener("change", e => { state.files = [...e.target.files]; renderFileList(); });
+["dragover", "dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("over")));
+drop.addEventListener("drop", e => { e.preventDefault(); state.files = [...e.dataTransfer.files]; renderFileList(); });
+function guessType(f) {
+  const n = f.name.toLowerCase();
+  if (n.endsWith(".wav")) return "Sound";
+  if (n.endsWith(".csv")) return "Sensor log";
+  if (/\.(mp4|mov|webm)$/.test(n)) return "Video";
+  if (n.includes("thermal")) return n.includes("indoor") ? "Thermal, indoor coil" : "Thermal, outdoor unit";
+  return "Photo (or thermal image, checked on upload)";
+}
+function renderFileList() {
+  $("#mediaList").innerHTML = state.files.map(f => `<li>${esc(f.name)}: ${esc(guessType(f))}</li>`).join("");
+}
+
+/* ---------- notes ---------- */
+function renderNotes() {
+  $("#notes").innerHTML = state.notes.map((n, i) =>
+    `<li><span>${esc(n)}</span><button type="button" aria-label="Remove note" data-i="${i}">✕</button></li>`).join("");
+}
+$("#notes").addEventListener("click", e => {
+  if (e.target.dataset.i !== undefined) { state.notes.splice(+e.target.dataset.i, 1); renderNotes(); }
+});
+function addNote(text) { text = text.trim(); if (text) { state.notes.push(text); renderNotes(); } }
+$("#addNote").addEventListener("click", () => { addNote($("#noteText").value); $("#noteText").value = ""; });
+$("#noteText").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#addNote").click(); } });
+
+/* ---------- voice: record, convert to 16 kHz mono WAV, transcribe ---------- */
+let recorder = null, chunks = [];
+$("#rec").addEventListener("click", async () => {
+  const btn = $("#rec");
+  if (recorder) { recorder.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream); chunks = [];
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      recorder = null; btn.setAttribute("aria-pressed", "false"); btn.textContent = "Transcribing…"; btn.disabled = true;
+      setStage("voice", "running");
+      try {
+        const wav = await toWav16k(new Blob(chunks));
+        const fd = new FormData(); fd.append("audio", wav, "note.wav");
+        const r = await fetch("/api/transcribe", { method: "POST", body: fd });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.detail);
+        addNote(body.text); setStage("voice", "done");
+      } catch (err) { showError("Voice note not transcribed: " + err.message + " Type the note instead."); setStage("voice", ""); }
+      btn.disabled = false; btn.textContent = "Record a voice note";
+    };
+    recorder.start(); btn.setAttribute("aria-pressed", "true"); btn.textContent = "Stop and transcribe";
+  } catch { showError("Microphone not available. Allow microphone access, or type the note."); }
+});
+async function toWav16k(blob) {
+  const ctx = new AudioContext();
+  const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  const off = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+  const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const buf = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + pcm.length * 2, true); w(8, "WAVEfmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, pcm.length * 2, true);
+  pcm.forEach((s, i) => v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s)) * 0x7fff, true));
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+/* ---------- pipeline ---------- */
+function setStage(name, st, secs) {
+  const el = $(`.stage[data-stage="${name}"]`);
+  el.dataset.state = st || "";
+  const small = el.querySelector("small");
+  small.dataset.base ??= small.textContent;
+  small.textContent = secs !== undefined ? `${small.dataset.base}, ${secs}s` : small.dataset.base;
+}
+
+/* ---------- investigate ---------- */
+$("#evidence").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#go"); go.disabled = true; go.textContent = "Investigating…";
+  ["parts", "pattern", "agent", "safety", "checker"].forEach(s => setStage(s, ""));
+  const photos = state.files.some(f => /\.(jpe?g|webp|mp4|mov|webm)$/i.test(f.name) || (/\.png$/i.test(f.name) && !/thermal/i.test(f.name)));
+  setStage("parts", $("#findParts").checked && photos ? "running" : "skipped");
+  setStage("pattern", "running"); setStage("agent", "running");
+  setStage("checker", $("#useChecker").checked ? "" : "skipped");
+
+  const fd = new FormData();
+  state.files.forEach(f => fd.append("files", f));
+  fd.append("sensor_csv", $("#csv").value);
+  fd.append("library_sample", $("#libSample").value);
+  fd.append("notes", JSON.stringify(state.notes));
+  fd.append("find_parts", $("#findParts").checked);
+  fd.append("use_checker", $("#useChecker").checked);
+  try {
+    const r = await fetch("/api/investigate", { method: "POST", body: fd });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || r.statusText);
+    const t = body.timings || {};
+    if (t.parts !== undefined) setStage("parts", "done", t.parts);
+    setStage("pattern", body.pattern_match ? "done" : "skipped", t.pattern);
+    setStage("agent", "done", t.agent); setStage("safety", "done", t.safety);
+    if ($("#useChecker").checked) setStage("checker", "done", t.checker);
+    Object.assign(state.titles, body.titles || {});
+    state.rounds.push(body); state.shown = state.rounds.length - 1;
+    render();
+  } catch (err) {
+    ["parts", "pattern", "agent"].forEach(s => setStage(s, ""));
+    showError(err.message);
+  }
+  go.disabled = false; go.textContent = "Investigate";
+});
+
+function showError(msg) {
+  const box = document.createElement("div"); box.className = "error"; box.setAttribute("role", "alert"); box.textContent = msg;
+  $("#out").prepend(box); setTimeout(() => box.remove(), 9000);
+}
+
+function render() {
+  const res = state.rounds[state.shown], a = res.assessment, chk = res.checker;
+  const confident = a.status === "confident";
+  const roundsNav = state.rounds.length > 1
+    ? `<div class="rounds">Round ${state.rounds.map((_, i) =>
+        `<button type="button" data-r="${i}" aria-current="${i === state.shown}">${i + 1}</button>`).join("")}</div>` : "";
+
+  const v = res.views || {};
+  const signalViews = (v.thermal_indoor || v.thermal_outdoor || v.spectrogram) ? `<div class="signals">
+      ${v.spectrogram ? `<div class="signal"><h3>Sound</h3><img src="${v.spectrogram}" alt="Spectrogram of the uploaded sound"></div>` : ""}
+      ${v.thermal_indoor ? `<div class="signal"><h3>Thermal, indoor coil</h3><img src="${v.thermal_indoor}" alt="Indoor coil thermal image"></div>` : ""}
+      ${v.thermal_outdoor ? `<div class="signal"><h3>Thermal, outdoor unit</h3><img src="${v.thermal_outdoor}" alt="Outdoor unit thermal image"></div>` : ""}
+    </div>` : "";
+  const photos = res.photos.length ? `<div class="frames">${res.photos.map((f, i) =>
+    `<figure><img src="${f.image}" alt="Photo ${i}"><figcaption>Photo ${i}${f.parts.length ? ": " + esc(f.parts.join(", ")) : ""}</figcaption></figure>`).join("")}</div>` : "";
+
+  const causes = a.hypotheses.map((h, i) => `
+    <div class="cause" data-open="${i === 0}">
+      <button type="button" aria-expanded="${i === 0}">
+        <span class="pct num">${Math.round(h.probability * 100)}%</span>
+        <span>${esc(h.title)}</span>
+        <span class="meter"><i style="width:${h.probability * 100}%"></i></span>
+      </button>
+      <div class="why">
+        <div><b>Supports</b><ul>${(h.evidence_for || []).map(x => `<li>${esc(x)}</li>`).join("") || "<li>Nothing specific cited</li>"}</ul></div>
+        ${(h.evidence_against || []).length ? `<div class="against"><b>Against</b><ul>${h.evidence_against.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      </div>
+    </div>`).join("");
+
+  const verdict = chk ? `<div class="verdict"><b class="${chk.verdict}">${chk.verdict === "accept" ? "Second check agrees" : "Second check disagrees"}</b>
+      <span class="hint">${esc(chk.checker_model)}${chk.checker_saw_images === false ? " (text only, images not accepted)" : ""}</span></div>
+      ${chk.reasons?.length ? `<ul class="hint" style="margin:0">${chk.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}` : "";
+  const safety = (a.safety_warnings || []).map(w => `<div class="tag danger"><h3>Before the next check</h3><p>${esc(w)}</p></div>`).join("");
+  const next = a.next_check ? `<div class="check"><h3>Next check</h3><p>${esc(a.next_check.do)}</p>
+      <p class="hint">If this is the fault: ${esc(a.next_check.expect_if_fault)}</p></div>` : "";
+  const need = !confident && a.observation_request ? `<div class="tag" id="needTag"><h3>Needed before deciding</h3><p>${esc(a.observation_request)}</p>
+      <div class="answer"><input type="text" id="answer" placeholder="What did you find?" aria-label="Your finding">
+      <button type="button" class="btn" id="answerBtn">Add and re-check</button></div></div>` : "";
+  const received = res.received?.length ? `<details class="panel"><summary>What FaultLens received (${res.received.length})</summary>
+      <ul class="received" style="margin-top:8px">${res.received.map(x => `<li>${esc(x.file)}: ${esc(x.as)}</li>`).join("")}</ul></details>` : "";
+
+  $("#out").innerHTML = `<div class="results">
+    ${roundsNav}
+    <div class="panel headline">
+      <span class="status ${confident ? "confident" : "more"}">${confident ? "Likely cause found" : "Not certain yet"}</span>
+      <p class="summary">${esc(a.summary)}</p>
+      ${verdict}
+    </div>
+    ${need}${safety}
+    ${next ? `<div class="panel">${next}</div>` : ""}
+    <div><h3 style="margin-bottom:10px">Possible causes</h3><div class="causes">${causes || '<p class="hint">No causes ranked.</p>'}</div></div>
+    ${res.pattern_match || res.pattern_note ? `<div class="panel">${patternBlock(res.pattern_match, res.pattern_note)}</div>` : ""}
+    ${signalViews ? `<div class="panel">${signalViews}</div>` : ""}
+    ${photos ? `<div class="panel"><h3 style="margin-bottom:10px">Photos</h3>${photos}</div>` : ""}
+    ${res.sensor_summary ? `<div class="panel">${sensorTable(res.sensor_summary)}</div>` : ""}
+    ${received}
+    <details class="panel"><summary>Agent steps (${res.seconds}s, ${res.usage.input_tokens.toLocaleString()} tokens in, ${res.usage.output_tokens.toLocaleString()} out)</summary>
+      <pre class="trace">${esc(JSON.stringify(res.trace, null, 1))}</pre></details>
+  </div>`;
+
+  $("#out").querySelectorAll(".cause > button").forEach(b => b.addEventListener("click", () => {
+    const c = b.parentElement, open = c.dataset.open !== "true";
+    c.dataset.open = open; b.setAttribute("aria-expanded", open);
+  }));
+  $("#out").querySelectorAll(".rounds button").forEach(b => b.addEventListener("click", () => { state.shown = +b.dataset.r; render(); }));
+  const ab = $("#answerBtn");
+  if (ab) {
+    const send = () => { const val = $("#answer").value.trim(); if (!val) return $("#answer").focus(); addNote(val); $("#go").click(); };
+    ab.addEventListener("click", send);
+    $("#answer").addEventListener("keydown", e => { if (e.key === "Enter") send(); });
+  }
+}
+
+const READING_NAMES = {
+  return_air_c: "Return air temperature (C)", supply_air_c: "Supply air temperature (C)",
+  outdoor_air_c: "Outside air temperature (C)", suction_psig: "Suction pressure (psi)",
+  discharge_psig: "Discharge pressure (psi)", compressor_amps: "Compressor current (A)",
+  outdoor_fan_amps: "Outdoor fan current (A)", room_sensor_c: "Unit's own room reading (C)",
+  delta_t_c: "Air temperature drop across indoor unit (C)", room_sensor_offset_c: "Room reading minus actual room air (C)",
+  compressor_off_minutes: "Minutes compressor was off", compressor_spikes_over_20a: "Compressor current spikes over 20 A",
+};
+const reading = k => READING_NAMES[k] || k.replaceAll("_", " ");
+function sensorTable(s, open = false) {
+  if (!s) return "";
+  const flags = s.out_of_range || {};
+  const cls = k => { const f = flags[k] || ""; return f.startsWith("LOW") ? "low" : f.startsWith("HIGH") ? "high" : ""; };
+  const word = c => c === "low" ? "Below normal" : c === "high" ? "Above normal" : "";
+  const rows = Object.entries(s.stats).map(([k, v]) => { const c = cls(k);
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v.median}</td><td class="num">${v.min} – ${v.max}</td><td class="${c}">${word(c)}</td></tr>`; }).join("");
+  const derived = Object.entries(s.derived).map(([k, v]) => { const c = cls(k);
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v}</td><td></td><td class="${c}">${word(c)}</td></tr>`; }).join("");
+  const missing = s.channels_missing.length ? `<p class="hint" style="margin-top:8px">Not in this log: ${esc(s.channels_missing.map(reading).join(", "))}</p>` : "";
+  return `<details ${open ? "open" : ""}><summary>Sensor readings (${s.minutes} minutes)</summary>
+    <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Reading</th><th>Typical</th><th>Range</th><th></th></tr></thead><tbody>${rows}${derived}</tbody></table></div>${missing}</details>`;
+}
+
+/* ---------- how it was tested ---------- */
+let reportLoaded = false;
+async function loadReport() {
+  if (reportLoaded) return;
+  const r = await fetch("/api/pattern-report");
+  const body = await r.json();
+  if (!r.ok) { $("#patternReport").innerHTML = `<h2>Pattern model</h2><p class="hint">${esc(body.detail)}</p>`; return; }
+  reportLoaded = true;
+  const all = body.test_all_severities, mild = body.test_mild_faults_only;
+  const sig = Object.keys(all.single_signal_accuracy);
+  const rows = sig.map(m => `<tr><td>${esc(SIGNAL_NAMES[m] || m)} only</td><td class="num">${pct(all.single_signal_accuracy[m])}</td><td class="num">${pct(mild.single_signal_accuracy[m])}</td></tr>`).join("");
+  const loo = Object.entries(all.fused_accuracy_missing_one_signal).map(([k, v]) =>
+    `<tr><td>All signals except ${esc(SIGNAL_NAMES[k.replace("without_", "")] || k)}</td><td class="num">${pct(v)}</td><td class="num">${pct(mild.fused_accuracy_missing_one_signal[k])}</td></tr>`).join("");
+  const labels = all.confusion_matrix.labels, cm = all.confusion_matrix.rows_true_cols_predicted;
+  const cmHtml = `<table><thead><tr><th>Actual \\ predicted</th>${labels.map(l => `<th title="${esc(title(l))}">${esc(title(l).split(" ").slice(0, 2).join(" "))}</th>`).join("")}</tr></thead>
+    <tbody>${cm.map((row, i) => `<tr><td>${esc(title(labels[i]))}</td>${row.map((n, j) => `<td class="num" style="${i === j ? "font-weight:600" : n ? "color:var(--high)" : "color:var(--rule)"}">${n}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  $("#patternReport").innerHTML = `
+    <div><h2>Pattern model</h2>
+      <p class="hint">${esc(body.data)} Trained on ${esc(body.trained_on)}. Tested on ${all.cases} separately generated units it never saw, and on ${mild.cases} units with only mild faults (15-35% severity).</p></div>
+    <table><thead><tr><th>Signals used</th><th>Correct, all severities</th><th>Correct, mild faults</th></tr></thead>
+      <tbody>${rows}<tr><td><b>All four combined</b></td><td class="num score">${pct(all.fused_accuracy)}</td><td class="num score">${pct(mild.fused_accuracy)}</td></tr>${loo}</tbody></table>
+    <p>No single signal is reliable on its own. Combined, they are, and the answer holds up when any one signal is missing.</p>
+    <details><summary>Where it still gets confused (all severities)</summary><div style="overflow-x:auto;margin-top:8px">${cmHtml}</div></details>`;
+}
+
+$("#runEval").addEventListener("click", async () => {
+  const btn = $("#runEval"); btn.disabled = true; btn.textContent = "Running…";
+  $("#evalOut").innerHTML = `<p class="hint">Running ${$("#evalLimit").value} cases. This can take a few minutes with live models.</p>`;
+  try {
+    const r = await fetch(`/api/eval?limit=${$("#evalLimit").value}`, { method: "POST" });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || r.statusText);
+    renderEval(body);
+  } catch (err) { $("#evalOut").innerHTML = `<div class="error">Test run failed: ${esc(err.message)}</div>`; }
+  btn.disabled = false; btn.textContent = "Run the test set";
+});
+function renderEval({ report, results }) {
+  const names = { rules: "Sensor rules only (baseline)", agent_sensors: "FaultLens, sensors only", agent_full: "FaultLens, sensors + note + check" };
+  const rows = Object.entries(report.by_mode).map(([m, r]) => `<tr>
+    <td>${esc(names[m] || m)}</td>
+    <td class="num score">${pct(r.all.top1_accuracy)}</td>
+    <td class="num">${pct(r.easy.top1_accuracy)}</td><td class="num">${pct(r.hard.top1_accuracy)}</td>
+    <td class="num">${pct(r.all.asked_for_more_evidence)}</td><td class="num">${pct(r.all.accuracy_when_confident)}</td></tr>`).join("");
+  const detail = results.map(r => `<tr><td>${esc(r.case)}</td><td>${esc(names[r.mode] || r.mode)}</td>
+    <td>${esc(title(r.predicted))}</td><td>${r.correct ? "Correct" : "Wrong"}</td><td>${r.status === "confident" ? "Confident" : "Asked for more"}</td></tr>`).join("");
+  $("#evalOut").innerHTML = `
+    ${report.mock ? '<p class="error">Offline mode: FaultLens rows repeat the rule baseline. Run with live models for real numbers.</p>' : ""}
+    <table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th></tr></thead><tbody>${rows}</tbody></table>
+    <details style="margin-top:12px"><summary>Every case</summary>
+      <table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th></tr></thead><tbody>${detail}</tbody></table></details>`;
+}
+</script>
+</body>
+</html>

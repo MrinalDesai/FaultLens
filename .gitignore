@@ -1,0 +1,18 @@
+# Secrets - never commit
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Evaluation outputs (keep the final report you cite; delete the rest)
+data/runs/
+
+# Trained model is rebuilt on each machine (python -m faultlens.pattern); the report is kept
+models/*.joblib
+
+# Large or licensed source material (store links, not files)
+manuals/*.pdf
+raw_footage/
