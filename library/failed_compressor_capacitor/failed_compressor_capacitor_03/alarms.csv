@@ -1,0 +1,12 @@
+time,code,meaning
+2026-10-24 13:22,L0,"Filter cleaning reminder (timer, every 250 running hours, not a fault)"
+2026-10-28 03:01,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:04,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:07,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:09,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:12,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:16,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:19,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:21,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:24,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"
+2026-10-28 03:28,E5,"Compressor start failure: current too high at start, compressor stopped and will retry"

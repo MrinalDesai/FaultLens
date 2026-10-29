@@ -59,7 +59,7 @@ VARIANTS = {
                               "capacitor": "Failed fan capacitor"},
     "low_refrigerant": {"flare": "Leak at a flare nut", "pipe": "Pinhole in a corroded copper pipe",
                         "hidden": "Leak not visible (found with a leak detector)"},
-    "failed_compressor_capacitor": {"domed": "Run capacitor swollen and leaking",
+    "failed_compressor_capacitor": {"domed": "Run capacitor scorched and leaking",
                                     "looks_normal": "Run capacitor failed inside, looks normal outside"},
     "faulty_room_thermistor": {"broken": "Room sensor cracked, wire broken",
                                "loose": "Room sensor fallen out of its clip onto the cold coil"},
@@ -90,6 +90,10 @@ COMPLAINTS = {
 def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> dict[str, str]:
     """What each action finds on this unit. s = severity 0-1."""
     mild = s < 0.45
+    lvl = library.severity_level(s)          # early / developing / advanced: findings match the photo shown
+
+    def by(early, developing, advanced):
+        return {"early": early, "developing": developing, "advanced": advanced}[lvl]
     st = sensor_summary["stats"]
 
     def med(ch):
@@ -115,10 +119,12 @@ def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> d
     }
 
     if cond == "clogged_air_filter":
-        r["inspect_filter"] = ("Filters are coated in grey dust. Light barely passes through." if not mild
-                               else "Filters have a visible dust layer. Some light still passes through.")
-        r["inspect_coil"] = ("Frost on the lower part of the indoor coil." if not mild
-                             else "The coil is very cold, with a thin frost line at the bottom.")
+        r["inspect_filter"] = by("About half the filter mesh is covered in dust. Some light still passes through.",
+                                 "Most of the mesh is covered in a thick dust layer. Little light passes through.",
+                                 "Filters are coated in grey dust. Light barely passes through.")
+        r["inspect_coil"] = by("The coil is very cold and sweating: water droplets on the lower fins, no frost yet.",
+                               "A thin frost line along the bottom rows of fins.",
+                               "Frost and ice on the lower part of the indoor coil.")
         r["feel_supply_air"] = f"Weak airflow. The air is very cold: {rng.uniform(6, 9):.1f} C at the louvres."
     elif cond == "condenser_fan_failure":
         r["watch_outdoor_fan"] = ("The fan blade is not turning, although the compressor is running." if not mild
@@ -127,48 +133,70 @@ def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> d
         r["feel_supply_air"] = f"Airflow is fine but the air is barely cool: {rng.uniform(17, 21):.1f} C."
         v = r["_variant"] = rng.choice(["bearing", "motor", "capacitor"])
         if v == "bearing":
-            r["spin_fan_blade"] = "The blade is stiff and grinds when turned. The hub and shaft are badly rusted: the bearing is seizing."
-            r["watch_outdoor_fan"] += " The hub is caked in rust."
+            r["spin_fan_blade"] = by("The blade turns but feels rough. Surface rust on the hub: the bearing is starting to go.",
+                                     "The blade is stiff to turn. The hub is heavily rusted: the bearing is wearing out.",
+                                     "The blade is stiff and grinds when turned. The hub and shaft are rusted through: the bearing is seizing.")
+            r["watch_outdoor_fan"] += by(" There is surface rust on the hub.", " The hub is heavily rusted.", " The hub is caked in rust.")
         else:
             r["spin_fan_blade"] = "The blade spins freely, so the motor or its capacitor is the problem."
         if v == "motor":
-            r["inspect_fan_motor"] = "The windings are burnt black, with melted varnish and a strong burnt smell. The motor has failed."
+            r["inspect_fan_motor"] = by("The windings are slightly darkened in places, with a faint hot smell. The motor is overheating.",
+                                        "The windings have brown scorched patches and discoloured varnish. The motor is failing.",
+                                        "The windings are burnt black, with melted varnish and a strong burnt smell. The motor has failed.")
             r["measure_fan_capacitor"] += " The capacitor is fine."
         if v == "capacitor":
-            r["measure_fan_capacitor"] = f"Fan capacitor rated 2.5 uF reads {rng.uniform(0.2, 0.9):.2f} uF. Failed."
-            r["inspect_capacitor"] = "The run capacitor looks normal, but the small fan capacitor's top is bulged with brown oil running down its side."
+            u = rng.uniform(0, 1)
+            val = by(2.05 + 0.25 * u, 1.3 + 0.5 * u, 0.2 + 0.7 * u)
+            r["measure_fan_capacitor"] = f"Fan capacitor rated 2.5 uF reads {val:.2f} uF. Failed: it should be above 2.375 uF."
+            r["inspect_capacitor"] = by("Both capacitors look normal from the outside.",
+                                        "The run capacitor looks normal; the small fan capacitor's top is bulging, with a brown stain around a terminal.",
+                                        "The run capacitor looks normal, but the small fan capacitor's top is bulged with brown oil running down its side.")
     elif cond == "low_refrigerant":
-        r["inspect_coil"] = "Frost on the inlet end of the indoor coil only. The rest of the coil is not cold."
+        r["inspect_coil"] = by("The inlet bends of the indoor coil are cold and sweating, no frost yet. The rest of the coil is not very cold.",
+                               "Light frost on the inlet bends only. The rest of the coil is not cold.",
+                               "Frost on the inlet end of the indoor coil only. The rest of the coil is not cold.")
         v = r["_variant"] = rng.choices(["flare", "pipe", "hidden"], weights=[5, 3, 2])[0]
         r["inspect_joints"] = {
-            "flare": "Oily, dust-caked residue around the outdoor suction valve flare nut.",
-            "pipe": "The joints are dry, but under split insulation near the outdoor unit the copper is green with corrosion and has a pinhole.",
+            "flare": by("A wet, oily ring around the outdoor suction valve flare nut: an early leak.",
+                        "An oily film with dust stuck to it on the outdoor suction valve flare nut.",
+                        "Oily, dust-caked residue around the outdoor suction valve flare nut."),
+            "pipe": by("The joints are dry, but under split insulation near the outdoor unit the copper has green corrosion patches; a leak detector finds the leak there.",
+                       "The joints are dry, but under split insulation near the outdoor unit the copper is heavily pitted with corrosion; a leak detector finds the leak there.",
+                       "The joints are dry, but under split insulation near the outdoor unit the copper is heavily pitted with corrosion and leaking."),
             "hidden": "No obvious residue at the joints or on the pipes.",
         }[v]
         r["feel_supply_air"] = f"Airflow is fine but the air is only cool: {rng.uniform(18, 21):.1f} C."
         r["gauge_pressures"] = (f"Suction {med('suction_psig') or rng.uniform(65, 85):.0f} psi (low), "
                                 f"discharge {med('discharge_psig') or rng.uniform(230, 280):.0f} psi (low).")
     elif cond == "dirty_condenser_coil":
-        r["inspect_condenser_fins"] = ("Little light passes: a mat of dust, lint and leaves on the outdoor fins." if not mild
-                                       else "Patches of dirt across the fins. Light passes in some places only.") + \
+        r["inspect_condenser_fins"] = by("Patches of dirt, lint and a few leaves across the fins. Light passes in most places.",
+                                         "Most of the fins are blocked with dust, lint and leaves. Light passes in small areas only.",
+                                         "Little light passes: the outdoor fins are packed with dust, lint and leaves.") + \
             " A patch of fins is also bent flat, blocking more air."
         r["feel_supply_air"] = f"Airflow is fine. Air at the louvres is {rng.uniform(15, 17.5):.1f} C."
     elif cond == "failed_compressor_capacitor":
         r["listen_compressor"] = "A loud hum from the outdoor unit for 2-3 seconds, then a click and silence. The fan keeps running."
         r["feel_supply_air"] = f"Airflow is fine but the air is not cold: {rng.uniform(27, 30):.1f} C."
-        v = r["_variant"] = rng.choices(["domed", "looks_normal"], weights=[7, 3])[0]
-        r["inspect_capacitor"] = ("The run capacitor's top is domed, scorched at the terminals, with oil running down the side."
+        # Visible damage (swelling, scorching, leaking) only shows on an advanced fault.
+        v = r["_variant"] = rng.choices(["domed", "looks_normal"], weights=[7, 3])[0] if s >= 0.45 else "looks_normal"
+        r["inspect_capacitor"] = (by("", "A scorch mark at one terminal of the run capacitor and a brown oil trace across its top.",
+                                     "The run capacitor is scorched around the terminals, with brown oil running down the side.")
                                   if v == "domed" else "The run capacitor looks normal from the outside.")
-        r["measure_capacitor"] = "Run capacitor rated 35 uF reads 18.2 uF. Failed (should be within 5% of 35)."
+        r["measure_capacitor"] = (f"Run capacitor rated 35 uF reads {library.run_cap_reading(s)} uF. "
+                                  f"Failed: it should be within 5% of its rating (33.25-36.75 uF).")
         r["gauge_pressures"] = "Suction and discharge read the same: the compressor is not pumping."
     elif cond == "faulty_room_thermistor":
         r["watch_outdoor_fan"] = "The outdoor unit is not running at all."
         r["listen_compressor"] = "Nothing starts outside. The indoor fan keeps blowing."
         r["feel_supply_air"] = f"Airflow is fine but the air is at room temperature: {rng.uniform(28, 30):.1f} C."
         v = r["_variant"] = rng.choice(["broken", "loose"])
-        r["compare_thermometer"] = "The unit reports 18 C; the thermometer beside it reads 27 C."
+        r["compare_thermometer"] = by("The unit reports 22 C; the thermometer beside it reads 27 C.",
+                                      "The unit reports 20 C; the thermometer beside it reads 27 C.",
+                                      "The unit reports 18 C; the thermometer beside it reads 27 C.")
         r["measure_thermistor"] = (
-            "The sensor tip is cracked and the wire insulation is split. It reads open circuit (no reading) at its connector."
+            by("The wire insulation is cracked just behind the probe. The resistance jumps when the wire is moved.",
+               "The wire insulation is split open behind the probe, copper strands showing. The reading flickers to open circuit when the wire is moved.",
+               "The sensor tip is cracked and the wire insulation is split. It reads open circuit (no reading) at its connector.")
             if v == "broken" else
             "The sensor's clip has broken and it hangs against the cold coil, so it measures the coil, not the room. "
             "Its resistance is correct for the coil's temperature.")
@@ -236,31 +264,9 @@ def action_menu(job: Job) -> list[dict]:
     return out
 
 
-def _photos_for(cond: str, action_id: str, variant: str = "") -> list[dict]:
-    """Library photos for this action and condition. An entry in photos.json can show on one
-    step or several ("shows": "inspect_coil" or a list), and can be limited to one specific
-    cause ("variant": "motor"), so a job never shows a photo that contradicts its findings."""
-    folder = library.LIBRARY / cond / "photos"
-    meta_path = folder / "photos.json"
-    if not meta_path.exists():
-        return []
-    try:
-        meta = json.loads(meta_path.read_text())
-    except json.JSONDecodeError:
-        return []
-    out = []
-    for name, info in meta.items():
-        if not isinstance(info, dict) or not (folder / name).exists():
-            continue
-        shows = info.get("shows")
-        shows = shows if isinstance(shows, list) else [shows]
-        if action_id not in shows:
-            continue
-        if info.get("variant") and info["variant"] != variant:
-            continue
-        out.append({"url": f"/library/{cond}/photos/{name}", "source": info.get("source", "unlabelled"),
-                    "caption": info.get("caption", ""), "part": info.get("part")})
-    return out
+def _photos_for(cond: str, action_id: str, variant: str = "", severity: float | None = None) -> list[dict]:
+    """Library photos for this action, as they look at this job's severity and specific cause."""
+    return [p for p in library.photos_for(cond, severity, action_id, variant) if not p.get("hidden")]
 
 
 def perform(job: Job, action_id: str) -> dict:
@@ -323,7 +329,7 @@ def perform(job: Job, action_id: str) -> dict:
                 found["card"] = {"image": card["image"]}
     else:
         found["finding"] = job.results[action_id]
-    photos = _photos_for(job.condition, action_id, job.variant)
+    photos = _photos_for(job.condition, action_id, job.variant, job.severity)
     if photos:
         found["photos"] = photos
         found["photo"] = photos[0]

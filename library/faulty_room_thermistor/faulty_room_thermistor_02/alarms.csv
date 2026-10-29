@@ -1,0 +1,3 @@
+time,code,meaning
+2026-10-24 18:14,L0,"Filter cleaning reminder (timer, every 250 running hours, not a fault)"
+2026-10-25 20:09,F1,Room temperature sensor open or short circuit

@@ -156,6 +156,17 @@ def summarize(rows: list[dict]) -> dict:
         elif value > hi:
             flags[key] = f"HIGH ({value} vs normal {lo}-{hi})"
 
+    # How far each reading is from normal, for the legend: within normal, slightly out
+    # (by up to half the width of its normal range) or far out.
+    levels = {}
+    for key, (lo, hi) in ranges.items():
+        value = derived.get(key, stats.get(key, {}).get("median"))
+        if value is None:
+            continue
+        out = lo - value if value < lo else value - hi if value > hi else 0.0
+        levels[key] = {"level": "normal" if out <= 0 else "slight" if out <= 0.5 * (hi - lo) else "far",
+                       "normal": [lo, hi], "direction": "low" if value < lo else "high" if value > hi else ""}
+
     return {
         "minutes": len(rows),
         "channels_present": present,
@@ -163,6 +174,7 @@ def summarize(rows: list[dict]) -> dict:
         "stats": stats,
         "derived": derived,
         "out_of_range": flags,
+        "levels": levels,
     }
 
 

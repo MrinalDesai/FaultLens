@@ -3,15 +3,31 @@
   "source": "chatgpt",
   "shows": "inspect_capacitor",
   "part": 15,
-  "caption": "Run capacitor domed, scorched and leaking",
+  "caption": "Visibly failed: scorched terminals, oil leaking down the side",
   "variant": "domed",
-  "role": "cause"
+  "role": "cause",
+  "severity_versions": {
+   "early": "parts/p15_run_capacitor.jpg",
+   "developing": "failed_compressor_capacitor/photos/severity/runcap_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Run capacitor looks normal outside: only measuring shows it",
+   "developing": "Scorch mark at one terminal, brown oil trace across the top"
+  }
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "measure_capacitor",
   "part": 15,
-  "caption": "Meter reads 18.2 uF on a 35 uF capacitor",
-  "role": "measurement"
+  "caption": "Looks healthy outside, but the meter reads 18.2 uF against its 35 uF rating: failed inside. A capacitor must be measured, not judged by eye",
+  "role": "measurement",
+  "severity_versions": {
+   "early": "failed_compressor_capacitor/photos/severity/meter_early.jpg",
+   "developing": "failed_compressor_capacitor/photos/severity/meter_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Meter reads 30.0 uF on a 35 uF capacitor: just past the 33.25 uF replace limit",
+   "developing": "Meter reads 24.9 uF on a 35 uF capacitor"
+  }
  }
 }

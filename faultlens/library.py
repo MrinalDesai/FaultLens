@@ -85,6 +85,83 @@ def _photo_list(cond: str) -> list[dict]:
     return out
 
 
+RUN_CAP_RATED = 35.0
+
+
+def run_cap_reading(severity: float) -> float:
+    """A run capacitor loses capacitance gradually. 35 uF rated; replace below 95% (33.25 uF).
+    One reading per severity level, the same as the meter photo for that level."""
+    return {"early": 30.0, "developing": 24.9, "advanced": 18.2}[severity_level(severity)]
+
+
+SEVERITY_BANDS = [(0.0, 0.45, "Early", "The fault is just starting: readings, sound and temperatures are only slightly off."),
+                  (0.45, 0.8, "Developing", "The fault is clear in several readings and the customer notices it."),
+                  (0.8, 1.01, "Advanced", "The fault is fully developed: readings are far from normal and protection may trip.")]
+
+
+def severity_band(severity: float | None) -> dict | None:
+    if severity is None:
+        return None
+    for lo, hi, name, text in SEVERITY_BANDS:
+        if lo <= severity < hi:
+            return {"name": name, "text": text, "severity": round(severity, 2)}
+    return None
+
+
+def severity_level(severity: float) -> str:
+    return "early" if severity < 0.45 else "developing" if severity < 0.8 else "advanced"
+
+
+def _wear_stage_for(severity: float, n_stages: int) -> int:
+    """Severity to the matching wear stage: early = third from worst, developing = second, advanced = worst."""
+    back = 0 if severity >= 0.8 else 1 if severity >= 0.45 else 2
+    return max(2, n_stages - back)
+
+
+def photos_for(cond: str, severity: float | None = None, action: str | None = None, variant: str = "") -> list[dict]:
+    """Photos of this fault as they would look at this severity.
+
+    Gradual wear (filter dust, coil dirt, hub rust, pipe corrosion): the photo is the wear stage that
+    matches the severity. Signs that only appear once a fault is bad enough (frost on the coil) are
+    left out below their threshold, with a note. Sudden failures (a swollen capacitor, a burnt winding)
+    look the same at any severity."""
+    from . import wear
+    folder = LIBRARY / cond / "photos"
+    try:
+        meta = json.loads((folder / "photos.json").read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    out = []
+    for name, e in meta.items():
+        if not isinstance(e, dict) or not (folder / name).exists():
+            continue
+        shows = e.get("shows")
+        shows = shows if isinstance(shows, list) else [shows]
+        if action and action not in shows:
+            continue
+        if e.get("variant") and variant and e["variant"] != variant:
+            continue
+        item = {"file": name, "url": f"/library/{cond}/photos/{name}", "source": e.get("source", "unlabelled"),
+                "caption": e.get("caption", ""), "part": e.get("part"), "variant": e.get("variant"),
+                "shows": shows, "role": e.get("role")}
+        if severity is not None and cond != "normal":
+            level = severity_level(severity)
+            if e.get("wear_part") and wear.has_scale(e["wear_part"]):
+                sts = wear.stages(e["wear_part"])
+                st = sts[_wear_stage_for(severity, len(sts)) - 1]
+                item.update(url=st["url"], caption=f"{wear.scale(e['wear_part'])['name']}: wear stage {st['stage']} of {len(sts)} ({st['label'].lower()})",
+                            note=f"Matches this severity: wear stage {st['stage']} of {len(sts)}.", stage=st["stage"])
+            elif e.get("severity_versions"):
+                if level != "advanced":
+                    item.update(url=f"/library/{e['severity_versions'][level]}",
+                                caption=e.get("level_captions", {}).get(level, item["caption"]))
+                item.update(level=level, note=f"{level.capitalize()} version of this sign: it changes as the fault develops.")
+            elif e.get("role") == "cause":
+                item["note"] = "Does not change with severity."
+        out.append(item)
+    return out
+
+
 def ensure_alarms(d: Path) -> None:
     """Libraries built before alarm history existed: add the fault log from the sample's seed."""
     f = d / "alarms.csv"
@@ -130,3 +207,44 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-condition", type=int, default=3)
     build(ap.parse_args().per_condition)
+
+
+LEVELS = ("early", "developing", "advanced")
+
+
+def severity_scales() -> list[dict]:
+    """Every damage sign that changes with severity, with its early, developing and advanced photo."""
+    out = []
+    for meta_path in sorted(LIBRARY.glob("*/photos/photos.json")):
+        cond = meta_path.parent.parent.name
+        try:
+            meta = json.loads(meta_path.read_text())
+        except json.JSONDecodeError:
+            continue
+        for name, e in meta.items():
+            if not isinstance(e, dict) or not e.get("severity_versions"):
+                continue
+            caps = e.get("level_captions", {})
+            levels = []
+            for lvl in LEVELS:
+                rel = f"{cond}/photos/{name}" if lvl == "advanced" else e["severity_versions"][lvl]
+                levels.append({"level": lvl, "rel": rel, "path": (LIBRARY / rel).resolve(), "url": f"/library/{rel}",
+                               "caption": e.get("caption", "") if lvl == "advanced" else caps.get(lvl, "")})
+            out.append({"id": f"{cond}/{name}", "fault": cond, "part": e.get("part"), "sign": e.get("caption", ""),
+                        "variant": e.get("variant"), "levels": levels})
+    return out
+
+
+def known_level(path) -> tuple[dict, str] | None:
+    """(scale, level) when a library photo is one of the severity versions (the healthy part images
+    used as 'early' for capacitors are not counted: they are simply healthy)."""
+    if path is None:
+        return None
+    p = Path(path).resolve()
+    if p.parent == (LIBRARY / "parts").resolve():
+        return None
+    for sc in severity_scales():
+        for lv in sc["levels"]:
+            if lv["path"] == p:
+                return sc, lv["level"]
+    return None

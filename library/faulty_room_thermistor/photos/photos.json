@@ -5,7 +5,15 @@
   "part": 6,
   "caption": "Sensor tip cracked, wire split",
   "variant": "broken",
-  "role": "cause"
+  "role": "cause",
+  "severity_versions": {
+   "early": "faulty_room_thermistor/photos/severity/sensor_early.jpg",
+   "developing": "faulty_room_thermistor/photos/severity/sensor_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Cracks in the sensor wire insulation just behind the probe",
+   "developing": "Sensor wire insulation split open behind the probe, copper strands showing"
+  }
  },
  "photo_02.jpg": {
   "source": "chatgpt",
@@ -20,6 +28,14 @@
   "shows": "compare_thermometer",
   "part": 9,
   "caption": "Unit shows 18 C, thermometer reads 27 C",
-  "role": "symptom"
+  "role": "symptom",
+  "severity_versions": {
+   "early": "faulty_room_thermistor/photos/severity/display_early.jpg",
+   "developing": "faulty_room_thermistor/photos/severity/display_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Unit shows 22 C, thermometer reads 27 C",
+   "developing": "Unit shows 20 C, thermometer reads 27 C"
+  }
  }
 }

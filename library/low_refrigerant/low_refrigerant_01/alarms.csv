@@ -1,0 +1,8 @@
+time,code,meaning
+2026-10-22 11:14,E6,Low-pressure protection: suction pressure too low
+2026-10-22 16:13,E6,Low-pressure protection: suction pressure too low
+2026-10-22 16:54,E6,Low-pressure protection: suction pressure too low
+2026-10-22 19:35,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-24 08:39,E6,Low-pressure protection: suction pressure too low
+2026-10-24 17:41,E6,Low-pressure protection: suction pressure too low
+2026-10-26 21:41,L0,"Filter cleaning reminder (timer, every 250 running hours, not a fault)"

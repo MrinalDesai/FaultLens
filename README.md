@@ -54,7 +54,17 @@ An alarm is raised only when the model is sure enough for two windows in a row (
 
 About 1 run in 10 still has a false alarm. Each run is scored on four things, shown under the chart: right fault found, how much of the true stretch it covered, how late it caught it (a fault that starts mildly is hard), and false alarms while the unit was healthy. Two more are reported apart, because they are not false alarms: naming the wrong fault while it was still mild (a slowing fan looks like a dirty coil), and being slow to clear after the repair (each window still holds part of the fault).
 
+After a run, **Ask FaultLens to explain** sends Muse Spark the run's data (the true stretch, every window's answer and confidence, the score, and the key reading or the spectrogram). It explains in plain words what changed, when and why the model caught it, and any delay or wrong label. One call, using only numbers from the run.
+
 Sound alone misses half the clogged filters: a blocked indoor filter barely changes how the outdoor unit sounds. That is why FaultLens combines signals. Remeasure with your trained model: `python -c "from faultlens import anomaly; anomaly.measure(20)"` (about 3 minutes).
+
+## Severity: how far a fault has developed
+
+Every simulated unit has a severity, from early (under 45%) through developing (45-80%) to advanced (80-100%). It changes everything about that unit: the readings, the sound, both thermal images, the alarm log and the photos. FaultLens is never told the severity; it has to find the fault anyway, and early faults are the hard ones (98% overall, 94% on mild faults).
+
+Every sign that changes as a fault develops has three photos, early, developing and advanced: frost on the indoor coil, frost at the coil inlet, an oily flare nut, a scorching fan-motor winding, a swelling fan or run capacitor, the capacitor meter reading (30.0, 24.9 and 18.2 uF on a 35 uF capacitor), a cracking sensor wire and the display against a thermometer (22, 20 and 18 C against 27 C). The game's findings use the same level, so the words and the photo always agree. In **Check a part**, Muse Spark also matches a photo to the closest of these levels ("How far has it gone?"); a library photo counts as right only when the level is exactly right.
+
+The app shows it plainly: a bar with the sample's severity on it, each reading marked within normal, slightly out or far out against its normal range, and photos that match. Gradual wear (filter dust, coil dirt, fan-hub rust, pipe corrosion) shows the matching wear stage; signs that only appear once a fault is bad enough (frost on the coil) are left out below that point, with the reason; sudden failures (a swollen capacitor, a burnt winding) look the same at any severity and are marked so.
 
 ## Alarm history
 

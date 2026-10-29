@@ -143,7 +143,9 @@ def library_sample(cond: str, sample: str):
     info = json.loads((library.sample_dir(cond, sample) / "info.json").read_text())
     return {"info": info, "views": _signal_views(ev), "sensor_summary": ev.sensor_summary(),
             "pattern_match": ev.pattern_match, "pattern_note": note,
-            "alarms": ev.alarms, "alarm_summary": alarms.summarize(ev.alarms)}
+            "alarms": ev.alarms, "alarm_summary": alarms.summarize(ev.alarms),
+            "photos": library.photos_for(cond, info.get("severity") if cond != "normal" else None),
+            "severity_band": library.severity_band(info.get("severity")) if cond != "normal" else None}
 
 
 @app.get("/api/pattern-report")
@@ -248,7 +250,10 @@ def part_list():
     return {"parts": items, "outlined_by": outlined_by,
             "by_fault": {c: parts.parts_for(c) for c in parts.FAULT_PARTS},
             "diagram": "/library/diagram/split_ac_exploded.png",
-            "wear_examples": wear.library_examples(), "wear_parts": list(wear.load()["parts"])}
+            "wear_examples": wear.library_examples(), "wear_parts": list(wear.load()["parts"]),
+            "severity_examples": [{"url": lv["url"], "part": sc["part"], "caption": f"{lv['caption']} ({lv['level']})"}
+                                  for sc in library.severity_scales() for lv in sc["levels"]
+                                  if lv["level"] != "advanced" and "/parts/" not in lv["url"]]}
 
 
 @app.get("/api/diagram.jpg")
@@ -315,6 +320,17 @@ def anomaly_run(body: AnomalyRun):
             "weights": [round(float(x), 3) for x in st["weights"][:: max(1, len(st["weights"]) // 360)]],
             "series": ser, "windows": r["found"]["windows"], "segments": r["found"]["segments"], "score": r["score"],
             "titles": titles, "sound_url": f"/api/anomaly/sound.wav?fault={st['fault']}&seed={st['seed']}" if body.signal == "sound" else None}
+
+
+@app.post("/api/anomaly/explain")
+def anomaly_explain(body: AnomalyRun):
+    """Muse Spark explains one run (the same run: same fault, signal and seed). One model call."""
+    if body.fault not in pattern.CLASSES or body.signal not in anomaly.SETUP or body.seed is None:
+        raise HTTPException(400, "Unknown run.")
+    try:
+        return anomaly.explain(body.fault, body.signal, body.seed)
+    except Exception as e:
+        raise HTTPException(502, f"Explanation failed: {e}")
 
 
 @app.get("/api/anomaly/sound.wav")
@@ -495,6 +511,7 @@ def game_conclude(job_id: str, body: Conclude):
                   checker=verdict, fix=knowledge.fault_guide(job.condition)["fix"],
                   sources=knowledge.sources_for(job.condition),
                   faulty_parts=[{"no": n, "name": parts.PARTS[n][0]} for n in parts.parts_for(job.condition, job.variant)],
+                  severity_band=library.severity_band(job.severity) if job.condition != "normal" else None,
                   outlined_by=parts.boxes()[1],
                   steps=job.steps)
     job.concluded = result

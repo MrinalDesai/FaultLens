@@ -4,7 +4,8 @@
   "shows": "inspect_condenser_fins",
   "part": 10,
   "caption": "Outdoor coil fins packed with dirt and leaves",
-  "role": "cause"
+  "role": "cause",
+  "wear_part": 10
  },
  "photo_02.jpg": {
   "source": "chatgpt",

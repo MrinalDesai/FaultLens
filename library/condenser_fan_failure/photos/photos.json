@@ -5,7 +5,15 @@
   "part": 12,
   "caption": "Fan motor windings burnt black",
   "variant": "motor",
-  "role": "cause"
+  "role": "cause",
+  "severity_versions": {
+   "early": "condenser_fan_failure/photos/severity/winding_early.jpg",
+   "developing": "condenser_fan_failure/photos/severity/winding_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Fan motor windings slightly darkened in places",
+   "developing": "Fan motor windings with brown scorched patches"
+  }
  },
  "photo_02.jpg": {
   "source": "chatgpt",
@@ -16,7 +24,8 @@
   "part": 11,
   "caption": "Fan hub and shaft rusted, bearing seizing",
   "variant": "bearing",
-  "role": "cause"
+  "role": "cause",
+  "wear_part": 11
  },
  "photo_03.jpg": {
   "source": "chatgpt",
@@ -27,6 +36,14 @@
   "part": 13,
   "caption": "Fan capacitor bulged and leaking",
   "variant": "capacitor",
-  "role": "cause"
+  "role": "cause",
+  "severity_versions": {
+   "early": "parts/p13_fan_capacitor.jpg",
+   "developing": "condenser_fan_failure/photos/severity/fancap_developing.jpg"
+  },
+  "level_captions": {
+   "early": "Fan capacitor looks normal outside: only measuring shows it",
+   "developing": "Fan capacitor top bulging, brown stain around a terminal"
+  }
  }
 }

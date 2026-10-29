@@ -371,6 +371,24 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
 .labverdict .vgood { color: var(--ok); font-weight: 700; display: inline; } .labverdict .vbad { color: var(--high); font-weight: 700; display: inline; }
 .labkey { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; }
 .labkey span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--fc); margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- severity ---------- */
+.sevbox { display: grid; gap: 8px; }
+.sevbar { position: relative; display: grid; grid-template-columns: 45fr 35fr 20fr; height: 14px; border-radius: 7px; overflow: hidden; }
+.sevbar span:nth-child(1) { background: #F3D98B; } .sevbar span:nth-child(2) { background: #E9A15A; } .sevbar span:nth-child(3) { background: #C8372D; }
+.sevmark { position: absolute; top: -5px; width: 4px; height: 24px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); }
+.sevlabels { display: grid; grid-template-columns: 45fr 35fr 20fr; font-size: .78rem; color: var(--ink-soft); }
+.lvl { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+.lvl.normal { background: #E3F2E7; color: #1E6B39; } .lvl.slight { background: #FBEBD0; color: #8A5A10; } .lvl.far { background: #F8D9D6; color: #9E2A20; }
+.lvlkey { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .8rem; margin-top: 6px; }
+.phnote { font-size: .78rem; color: var(--ink-soft); }
+#sampleBody > div { grid-template-columns: minmax(0, 1fr); }
+.sevbox, .sevlabels span { min-width: 0; }
+.sevlabels span { overflow-wrap: anywhere; }
+.meter { aspect-ratio: 1; display: grid; place-content: center; gap: 10px; text-align: center; background: #20262B; border-radius: var(--radius-s); padding: 16px; }
+.meterscreen { background: #B9C7A8; color: #1B2416; font-family: "Courier New", monospace; font-size: 2.6rem; font-weight: 700; padding: 12px 22px; border-radius: 6px; box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
+.meterscreen small { font-size: 1.2rem; }
+.phhidden { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 12px; border: 1px dashed var(--rule); border-radius: var(--radius-s); color: var(--ink-soft); font-size: .85rem; background: var(--ground); }
 </style>
 </head>
 <body>
@@ -676,6 +694,23 @@ function alarmBlock(sm, rows) {
   return `${codes}<p class="hint" style="margin-top:6px">${esc(sm.note)}</p>`;
 }
 
+const SEVERITY_TEXT = "Severity is how far the fault has developed in this simulated unit. An early fault is only just showing: readings, sound, thermal images and alarms are slightly off. An advanced one is far from normal. FaultLens is never told the severity: it has to find the fault anyway, and early faults are the hard ones.";
+
+function severityBox(band) {
+  if (!band) return "";
+  return `<div class="sevbox"><div><b>Severity: ${Math.round(band.severity * 100)}%, ${esc(band.name.toLowerCase())}.</b> ${esc(band.text)}</div>
+    <div class="sevbar"><span></span><span></span><span></span><i class="sevmark" style="left:${Math.min(99.5, band.severity * 100)}%"></i></div>
+    <div class="sevlabels"><span>Early (under 45%)</span><span>Developing (45-80%)</span><span>Advanced (80-100%)</span></div></div>`;
+}
+
+function photoTile(p) {
+  if (p.reading) return `<figure><div class="meter"><div class="meterscreen">${p.reading.value} <small>${esc(p.reading.unit)}</small></div>
+      <div class="hint" style="color:#C9D2D8">rated ${p.reading.rated} ${esc(p.reading.unit)} · replace below ${p.reading.limit}</div></div>
+    <figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption)}<br><span class="phnote">Shown as a reading: the meter photo is of an advanced fault (18.2 uF).</span></figcaption></figure>`;
+  if (p.hidden) return `<figure><div class="phhidden">${esc(p.note)}</div><figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption || "")}</figcaption></figure>`;
+  return photoFigure(p).replace("</figcaption>", `${p.note ? `<br><span class="phnote">${esc(p.note)}</span>` : ""}</figcaption>`);
+}
+
 function sampleLabel(s, cond) {
   const n = "Sample " + parseInt(s.id.split("_").pop(), 10);
   if (cond === "normal" || s.severity == null) return n;
@@ -730,24 +765,30 @@ async function renderDetail() {
     <div class="panel" style="display:grid;gap:10px">
       <h2>${esc(c.title)}</h2>
       <p>${esc(c.summary)}</p>
+      ${c.condition !== "normal" ? `<p class="hint">${esc(SEVERITY_TEXT)}</p>` : ""}
       ${c.samples.length ? `<div class="samples" role="tablist">${c.samples.map(x =>
         `<button type="button" role="tab" data-s="${esc(x.id)}" aria-current="${x.id === state.sample}">${esc(sampleLabel(x, c.condition))}</button>`).join("")}</div>` : ""}
     </div>
     <div class="panel" id="sampleBody"><p class="hint">Loading sample…</p></div>
-    ${whereItIs(c)}
+    <div id="whereBox"></div>
     ${c.sources?.length ? `<div class="panel"><h3 style="margin-bottom:8px">Public documentation</h3><ul style="margin:0;padding-left:18px">${c.sources.map(x =>
       `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><br><span class="hint">${esc(x.supports)}</span></li>`).join("")}</ul></div>` : ""}
-    <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault</h3>${photos}</div>`;
+    <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault${c.condition !== "normal" ? ", at this severity" : ""}</h3><div id="photoBox">${photos}</div></div>`;
   $("#detail").querySelectorAll(".samples button").forEach(b => b.addEventListener("click", () => { state.sample = b.dataset.s; renderDetail(); }));
   if (!s) { $("#sampleBody").innerHTML = `<p class="hint">No samples for this condition.</p>`; return; }
 
   const r = await fetch(`/api/library/${encodeURIComponent(c.condition)}/${encodeURIComponent(s.id)}`);
   const body = await r.json();
   if (!$("#sampleBody") || state.cond !== c.condition || state.sample !== s.id) return;   // view changed while loading
+  if (r.ok && body.photos) {
+    $("#photoBox").innerHTML = body.photos.length ? `<div class="logphotos">${body.photos.map(photoTile).join("")}</div>` : $("#photoBox").innerHTML;
+    $("#whereBox").innerHTML = whereItIs({ ...c, photos: body.photos.filter(p => !p.hidden) });
+  }
   if (!r.ok) { $("#sampleBody").innerHTML = `<div class="error">${esc(body.detail)}</div>`; return; }
   const src = k => `<span class="source ${esc(s.sources[k] || "")}">${esc(SOURCE_TEXT[s.sources[k]] || s.sources[k] || "")}</span>`;
   $("#sampleBody").innerHTML = `
     <div style="display:grid;gap:20px">
+      ${severityBox(body.severity_band)}
       <div class="signals">
         <div class="signal"><div class="sighead"><h3>Sound at the outdoor unit</h3>${src("sound")}</div>
           <audio controls preload="none" src="${esc(s.files.sound)}"></audio>
@@ -1014,13 +1055,18 @@ function sensorTable(s, open = false) {
   const flags = s.out_of_range || {};
   const cls = k => { const f = flags[k] || ""; return f.startsWith("LOW") ? "low" : f.startsWith("HIGH") ? "high" : ""; };
   const word = c => c === "low" ? "Below normal" : c === "high" ? "Above normal" : "";
+  const L = s.levels || {};
+  const chip = k => { const l = L[k]; if (!l) return ""; const t = { normal: "Within normal", slight: "Slightly out", far: "Far out" }[l.level];
+    return `<span class="lvl ${l.level}">${t}${l.direction ? (l.direction === "low" ? ", low" : ", high") : ""}</span>`; };
+  const norm = k => L[k] ? `${L[k].normal[0]} – ${L[k].normal[1]}` : "";
   const rows = Object.entries(s.stats).map(([k, v]) => { const c = cls(k);
-    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v.median}</td><td class="num">${v.min} – ${v.max}</td><td class="${c}">${word(c)}</td></tr>`; }).join("");
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v.median}</td><td class="num">${v.min} – ${v.max}</td><td class="num hint">${norm(k)}</td><td>${chip(k) || `<span class="${c}">${word(c)}</span>`}</td></tr>`; }).join("");
   const derived = Object.entries(s.derived).map(([k, v]) => { const c = cls(k);
-    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v}</td><td></td><td class="${c}">${word(c)}</td></tr>`; }).join("");
+    return `<tr><td>${esc(reading(k))}</td><td class="num ${c}">${v}</td><td></td><td class="num hint">${norm(k)}</td><td>${chip(k) || `<span class="${c}">${word(c)}</span>`}</td></tr>`; }).join("");
   const missing = s.channels_missing.length ? `<p class="hint" style="margin-top:8px">Not in this log: ${esc(s.channels_missing.map(reading).join(", "))}</p>` : "";
   return `<details ${open ? "open" : ""}><summary>Sensor readings (${s.minutes} minutes)</summary>
-    <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Reading</th><th>Typical</th><th>Range</th><th></th></tr></thead><tbody>${rows}${derived}</tbody></table></div>${missing}</details>`;
+    <div class="scroll"><table style="margin-top:10px"><thead><tr><th>Reading</th><th>Typical</th><th>Range</th><th>Normal</th><th>How far off</th></tr></thead><tbody>${rows}${derived}</tbody></table></div>
+    <div class="lvlkey"><span class="lvl normal">Within normal</span><span class="lvl slight">Slightly out</span> up to half its normal range outside <span class="lvl far">Far out</span> more than that</div>${missing}</details>`;
 }
 
 /* ---------- how it was tested ---------- */
@@ -1276,6 +1322,7 @@ function openConclude() {
     p.innerHTML = `<div class="reveal">
       <h2>The fault was: ${esc(s.actual_title)}${s.actual !== "normal" ? ` <span class="hint">(${Math.round(s.severity * 100)}% severity)</span>` : ""}</h2>
       ${s.actual_cause ? `<p><b>Cause on this unit:</b> ${esc(s.actual_cause)}</p>` : ""}
+      ${severityBox(s.severity_band)}
       ${s.faulty_parts?.length ? `<img class="diagram" src="${diagramUrl(s.faulty_parts.map(p => p.no))}" alt="Faulty part outlined on the exploded view">
         <p class="hint">${s.faulty_parts.map(p => `#${p.no} ${esc(p.name)}`).join(", ")}. Outlines ${esc(s.outlined_by)}.</p>` : ""}
       <div class="verdicts">
@@ -1302,7 +1349,7 @@ fetch("/api/parts").then(r => r.json()).then(P => {
 fetch("/api/library").then(r => r.json()).then(async b => {
   const lib = (b.conditions || b.library || b);
   const picks = [];
-  try { const P = await fetch("/api/parts").then(r => r.json()); (P.wear_examples || []).forEach(x => picks.push(x)); } catch (e) {}
+  try { const P = await fetch("/api/parts").then(r => r.json()); (P.wear_examples || []).forEach(x => picks.push(x)); (P.severity_examples || []).forEach(x => picks.push(x)); } catch (e) {}
   (Array.isArray(lib) ? lib : []).forEach(c => (c.photos || []).forEach(p => { if (c.condition !== "normal" && p.part) picks.push(p); }));
   $("#pcPick").innerHTML = picks.map(p => `<button type="button" data-u="${esc(p.url)}" title="${esc(p.caption)}"><img src="${esc(p.url)}" alt="${esc(p.caption)}" loading="lazy"></button>`).join("");
   $("#pcPick").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
@@ -1342,6 +1389,17 @@ function wearHtml(w) {
     <p class="hint" style="margin:0">${esc(w.note)}</p></div>`;
 }
 
+function severityHtml(v) {
+  const names = { early: "Early", developing: "Developing", advanced: "Advanced" };
+  return `<div class="wear"><h3 style="margin:0">How far has it gone?</h3>
+    <div class="wearstrip" style="--n:3">${v.strip.map(x => `<figure class="${x.level === v.level ? "here" : ""}">
+      ${x.is_query ? `<div class="missing">This photo's own level, left out</div>` : `<img src="${esc(x.url)}" alt="${esc(x.caption)}">`}
+      <figcaption>${names[x.level]}</figcaption></figure>`).join("")}</div>
+    <p style="margin:0"><span class="lifebig">${names[v.level]}:</span> ${esc((v.strip.find(x => x.level === v.level) || {}).caption || v.sign)}.</p>
+    ${v.known_level ? `<p class="hint" style="margin:0">Known level of this photo: ${names[v.known_level].toLowerCase()}.</p>` : ""}
+    <p class="hint" style="margin:0">Muse Spark matched the photo to the closest of the early, developing and advanced reference photos of this sign.</p></div>`;
+}
+
 function partCheckHtml(res, compact) {
   const cls = res.condition === "damaged" ? "bad" : res.condition === "healthy" ? "good" : "unclear";
   const k = res.known;
@@ -1361,6 +1419,7 @@ function partCheckHtml(res, compact) {
       ${res.matches_complaint && res.matches_complaint !== "no complaint given" ? ` Matches the complaint: <b>${esc(res.matches_complaint)}</b>.` : ""}</p>` : ""}
     ${res.next_check ? `<p><b>To confirm:</b> ${esc(res.next_check)}</p>` : ""}
     ${res.wear ? wearHtml(res.wear) : ""}
+    ${res.severity ? severityHtml(res.severity) : ""}
     ${known}
     ${imgs}
     <p class="hint">${res.identified_by ? `Part identified by ${esc(res.identified_by)}. ` : ""}${esc(res.model)}, ${res.seconds}s, confidence ${Math.round((res.confidence || 0) * 100)}%.
@@ -1394,10 +1453,26 @@ async function labRun() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail);
     $("#labSetup").textContent = `Window ${d.window} ${d.unit}, moved ${d.step} ${d.unit} at a time. A stretch counts as a fault when the model is at least ${Math.round(d.sure * 100)}% sure for ${d.hold} windows in a row.`;
+    lab.last = { fault: d.fault, signal: d.signal, seed: d.seed };
     $("#labOut").innerHTML = labChart(d) + labVerdict(d) +
+      `<div style="margin-top:10px"><button type="button" class="btn" id="labExplain" style="width:auto">Ask FaultLens to explain</button>
+        <span class="hint">Muse Spark reads this run and explains it. One model call.</span><div id="labExplainOut"></div></div>` +
       (d.sound_url ? `<p style="margin-top:8px"><audio controls preload="none" src="${esc(d.sound_url)}"></audio> <span class="hint">Listen to it.</span></p>` : "") +
       `<p class="hint" style="margin-top:6px">Simulated signal, from the same physical models the pattern model was trained on. New unit and new fault timing every run.</p>`;
+    $("#labExplain").addEventListener("click", labExplain);
   } catch (e) { $("#labOut").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+async function labExplain() {
+  const btn = $("#labExplain"); btn.disabled = true;
+  $("#labExplainOut").innerHTML = `<p class="thinking">Muse Spark is reading the run…</p>`;
+  try {
+    const r = await fetch("/api/anomaly/explain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(lab.last) });
+    const x = await r.json();
+    if (!r.ok) throw new Error(x.detail);
+    $("#labExplainOut").innerHTML = `<div class="msg coach" style="margin-top:10px"><span class="who">FaultLens: ${esc(x.model)}, ${x.seconds}s</span><p>${esc(x.text)}</p></div>`;
+    btn.remove();
+  } catch (e) { $("#labExplainOut").innerHTML = `<div class="error">${esc(e.message)}</div>`; btn.disabled = false; }
 }
 
 function labChart(d) {

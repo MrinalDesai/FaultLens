@@ -1,0 +1,9 @@
+time,code,meaning
+2026-10-22 09:46,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-23 08:41,L0,"Filter cleaning reminder (timer, every 250 running hours, not a fault)"
+2026-10-23 20:52,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-24 11:49,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-24 13:29,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-27 13:12,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-27 15:01,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C
+2026-10-28 11:30,P1,Indoor coil freeze protection: compressor stopped because the indoor coil was below 0 C

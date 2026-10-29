@@ -129,6 +129,13 @@ def known_answer(path: Path | None) -> dict | None:
         label = sc["stages"][st - 1]["label"]
         return {"part_no": n, "condition": "healthy" if st == 1 else "damaged", "caption": f"{sc['name']}, wear stage {st}: {label}",
                 "fault": None, "role": "healthy" if st == 1 else "cause", "stage": st}
+    kl = library.known_level(path)
+    if kl and kl[1] != "advanced":
+        sc, lvl = kl
+        cap = next((lv["caption"] for lv in sc["levels"] if lv["level"] == lvl), sc["sign"])
+        return {"part_no": sc["part"], "condition": "damaged", "caption": f"{cap} ({lvl})",
+                "fault": sc["fault"], "role": "symptom" if "frost" in sc["sign"].lower() or "sweat" in sc["sign"].lower() else "cause",
+                "level": lvl}
     if path.parent.resolve() == parts.PART_DIR.resolve():
         for n, p in parts.PARTS.items():
             if p[2] == path.name:
@@ -140,8 +147,11 @@ def known_answer(path: Path | None) -> dict | None:
         if isinstance(e, dict) and e.get("part"):
             cond = path.parent.parent.name
             healthy = cond == "normal"
-            return {"part_no": e["part"], "condition": "healthy" if healthy else "damaged", "caption": e.get("caption", ""),
-                    "fault": None if healthy else cond, "role": e.get("role", "cause")}
+            out = {"part_no": e["part"], "condition": "healthy" if healthy else "damaged", "caption": e.get("caption", ""),
+                   "fault": None if healthy else cond, "role": e.get("role", "cause")}
+            if e.get("severity_versions") and not healthy:
+                out["level"] = "advanced"
+            return out
     return None
 
 
@@ -163,6 +173,10 @@ def _tool() -> dict:
                 "matches_complaint": {"type": "string", "enum": ["yes", "no", "no complaint given"]},
                 "next_check": {"type": "string", "description": "One check that would confirm it, in plain words."},
                 "confidence": {"type": "number", "description": "0 to 1."},
+                "severity_level": {"type": "string", "enum": ["early", "developing", "advanced", "none"],
+                                   "description": "If SEVERITY references were given: how far the damage has gone, matched to "
+                                                  "the closest reference. 'none' if the part is healthy or no severity references were given."},
+                "severity_sign": {"type": "string", "description": "Which sign the severity_level refers to (copy its name from the references)."},
                 "wear_stage": {"type": "integer", "description": "If WEAR STAGE references were given: the stage number the "
                                "technician's photo matches best. 0 if no wear scale was given."}},
                 "required": ["part_no", "condition", "what_i_see", "action", "role", "faults", "confidence"]}}
@@ -217,6 +231,21 @@ def _content(photo: Image.Image, part_no: int | None, complaint: str, exclude: P
                         {"type": "input_image", "image_url": image_to_data_url(Image.open(h), 640)}]
             sent.append(f"healthy {parts.PARTS[part_no][0].lower()}")
     refs = [r for n in candidates for r in damaged_references(n, exclude)]
+    if part_no is not None:
+        excl = _excluded(exclude)
+        scales = [sc for sc in library.severity_scales() if sc["part"] == part_no]
+        in_scale = {lv["path"] for sc in scales for lv in sc["levels"]}
+        refs = [r for r in refs if r["path"].resolve() not in in_scale]
+        for sc in scales:
+            shown = [lv for lv in sc["levels"] if lv["path"] not in excl]
+            if not shown:
+                continue
+            content.append(text_part(f"SEVERITY references for the sign \"{sc['sign']}\" (seen with: {_fault_titles().get(sc['fault'], sc['fault'])}). "
+                                     "Early, developing and advanced versions. A level whose picture is missing still exists."))
+            for lv in shown:
+                content += [text_part(f"SEVERITY {lv['level'].upper()}: {lv['caption']}"),
+                            {"type": "input_image", "image_url": image_to_data_url(Image.open(lv["path"]), 512)}]
+                sent.append(f"{lv['level']}: {lv['caption'][:50]}")
     if part_no is not None and wear.has_scale(part_no):   # already shown as a wear stage
         in_scale = {(library.LIBRARY / st["same_as"]).resolve() for st in wear.scale(part_no)["stages"] if st.get("same_as")}
         refs = [r for r in refs if r["path"].resolve() not in in_scale]
@@ -274,7 +303,7 @@ def _mock(known: dict | None) -> dict:
             "action": "replace" if damaged and known["role"] == "cause" else ("check_further" if damaged else "no_action"),
             "role": known["role"], "faults": [known["fault"]] if known.get("fault") else [],
             "matches_complaint": "no complaint given", "next_check": "", "confidence": 1.0,
-            "wear_stage": known.get("stage") or 0}
+            "wear_stage": known.get("stage") or 0, "severity_level": known.get("level", "none")}
 
 
 def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
@@ -320,11 +349,29 @@ def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
            "references_sent": sent, "model": model, "usage": usage, "known": known,
            "identified_by": "offline mode" if config.MOCK else identified_by}
     out["wear"] = wear.result(n, result.get("wear_stage"), library_path) if wear.has_scale(n) else None
+    lvl = result.get("severity_level")
+    scales = [sc for sc in library.severity_scales() if sc["part"] == n]
+    if scales and lvl in library.LEVELS:
+        sign = (result.get("severity_sign") or "").lower()
+        sc = next((x for x in scales if x["sign"].lower()[:25] in sign or sign[:25] in x["sign"].lower()), None) if sign else None
+        if sc is None and known and known.get("level"):
+            sc = next((x for x in scales if x["fault"] == known.get("fault")), scales[0])
+        sc = sc or scales[0]
+        excl = _excluded(library_path)
+        out["severity"] = {"level": lvl, "sign": sc["sign"],
+                           "strip": [{"level": lv["level"], "url": lv["url"], "caption": lv["caption"], "is_query": lv["path"] in excl}
+                                     for lv in sc["levels"]],
+                           "known_level": known.get("level") if known else None}
+    else:
+        out["severity"] = None
     if out["wear"] and known and known.get("stage"):
         out["wear"]["known_stage"] = known["stage"]
     if known:
         out["known"]["fault_title"] = titles.get(known["fault"], "") if known.get("fault") else ""
-        if known.get("stage") and out["wear"]:
+        if known.get("level") and out.get("severity"):
+            out["agrees_with_known"] = known["part_no"] == n and out["severity"]["level"] == known["level"]
+            out["agreement_rule"] = "right part, right severity level"
+        elif known.get("stage") and out["wear"]:
             # Wear photos: right part and within one stage of the true one.
             out["agrees_with_known"] = known["part_no"] == n and abs(out["wear"]["stage"] - known["stage"]) <= 1
             out["agreement_rule"] = "right part, within one wear stage"

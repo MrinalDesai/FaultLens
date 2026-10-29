@@ -238,3 +238,77 @@ if __name__ == "__main__":   # measure it over many runs
             print(f"  {f:28s} right {right}/{len(res)}  coverage {cov:.0%}  median delay "
                   f"{np.median(delays) if delays else float('nan'):.0f}{SETUP[signal]['unit']}  false alarms in {fa}/{len(res)} runs"
                   f"  wrong label {wl:.0f}{SETUP[signal]['unit']} avg  slow to clear {lag:.0f}{SETUP[signal]['unit']} avg")
+
+
+# ----------------------------------------------------------------------------- explanation by Muse Spark
+
+EXPLAIN_PROMPT = """You are FaultLens, explaining to a technician what happened in one anomaly-lab run on a {equipment}.
+A fault was injected into a stretch of a healthy signal ({signal}), fading in, holding, then repaired. FaultLens's
+own pattern model slid a window along the signal and labelled each stretch. You get the true stretch, what the model
+called, its confidence per window, the score, and the readings (or the spectrogram picture for sound).
+
+In 4-6 plain sentences, no jargon:
+- say what changed in the signal and when, quoting actual numbers and times from the data given,
+- say when and why the model caught it, and explain any wrong label or delay (a fault that starts mildly looks
+  like a neighbouring fault; each window looks back {window} {unit}, so alarms clear late),
+- say what the run shows about this signal for this fault, honestly, including weaknesses.
+Only use numbers that appear in the data. Do not invent readings."""
+
+
+def explain_data(r: dict) -> dict:
+    """A compact, checkable summary of one run for the model."""
+    st, found, sc = r["stream"], r["found"], r["score"]
+    cfg = SETUP[st["signal"]]
+    data = {"signal": st["signal"], "injected_fault": st["fault"], "true_fault_stretch": st["truth"], "length": st["length"],
+            "unit": cfg["unit"], "window": cfg["window"], "step": cfg["step"],
+            "alarm_rule": f"at least {int(cfg['sure'] * 100)}% sure for {cfg['hold']} windows in a row",
+            "model_called": [{k: s[k] for k in ("start", "end", "label", "confidence")} for s in found["segments"]],
+            "windows": [{"centre": round((w["start"] + w["end"]) / 2, 1), "top": w["top"], "confidence": w["confidence"],
+                         "alarm": w["label"]} for w in found["windows"]],
+            "score": sc}
+    if st["signal"] == "sensors":
+        ch = KEY_READING.get(st["fault"], "discharge_psig")
+        vals = [row[ch] for row in st["rows"]]
+        data["key_reading"] = {"name": CHANNEL_NAMES.get(ch, ch),
+                               "every_10_min": [{"minute": m, "value": vals[m]} for m in range(0, len(vals), 10)]}
+        if ch == "room_sensor_c":
+            data["key_reading"]["reference_every_10_min"] = [{"minute": m, "value": st["rows"][m]["return_air_c"]}
+                                                            for m in range(0, len(vals), 10)]
+    return data
+
+
+def _mock_explanation(d: dict) -> str:
+    u, s = d["unit"], d["score"]
+    if not d["true_fault_stretch"]:
+        return (f"(offline mode) Nothing was injected. The model raised {s['false_alarms']} false alarm(s) "
+                f"over {d['length']} {u}.")
+    a, b = d["true_fault_stretch"]
+    calls = ", ".join(f"{x['label']} {x['start']}-{x['end']} {u} ({int(x['confidence'] * 100)}%)" for x in d["model_called"] if x["label"] != "normal")
+    return (f"(offline mode, no model call) The fault ran from {a} to {b} {u}. The model called: {calls or 'nothing'}. "
+            f"It was first caught {s['delay']} {u} after it began and covered {int((s['coverage'] or 0) * 100)}% of the stretch; "
+            f"each window looks back {d['window']} {u}, so the alarm cleared {s['slow_to_clear']} {u} after the repair.")
+
+
+def explain(fault: str, signal: str, seed: int) -> dict:
+    """Muse Spark explains one run in plain words. One call."""
+    import json as _json
+    import time as _time
+    from . import config, knowledge
+    from .meta_client import client, image_part, text_part
+    t0 = _time.time()
+    r = run(fault, signal, seed)
+    d = explain_data(r)
+    if config.MOCK:
+        return {"text": _mock_explanation(d), "model": "offline mode", "seconds": 0.0, "usage": {}}
+    cfg = SETUP[signal]
+    content = [text_part("Run data:\n" + _json.dumps(d))]
+    if signal == "sound":
+        content += [text_part("Spectrogram of the whole 60 s recording, time left to right, pitch bottom to top:"),
+                    image_part(r["series"]["image"])]
+    resp = client().responses.create(model=config.AGENT_MODEL, input=[
+        {"role": "system", "content": EXPLAIN_PROMPT.format(equipment=knowledge.load()["equipment"], signal=signal,
+                                                            window=cfg["window"], unit=cfg["unit"])},
+        {"role": "user", "content": content}])
+    usage = {"input_tokens": getattr(resp.usage, "input_tokens", 0), "output_tokens": getattr(resp.usage, "output_tokens", 0)}
+    return {"text": (resp.output_text or "").strip(), "model": f"Muse Spark ({config.AGENT_MODEL})",
+            "seconds": round(_time.time() - t0, 1), "usage": usage}
