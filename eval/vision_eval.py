@@ -136,7 +136,7 @@ def main() -> None:
             except Exception as e:
                 probs, saw = {}, f"error: {e}"
             p_vision = _norm(probs)
-            p_both = model.fuse({"pattern": p_pattern, "vision": p_vision})
+            p_both = model.fuse({"pattern": p_pattern, "vision": p_vision}, calibrated=False)
             row = {"condition": cond, "severity": round(sev, 2),
                    "muse_spark": pattern.CLASSES[int(np.argmax(p_vision))] if probs else None,
                    "pattern_model": pattern.CLASSES[int(np.argmax(p_pattern))],

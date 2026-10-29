@@ -1,1 +1,29 @@
-{}
+{
+ "photo_01.jpg": {
+  "source": "chatgpt",
+  "shows": "inspect_fan_motor",
+  "part": 12,
+  "caption": "Fan motor windings burnt black",
+  "variant": "motor"
+ },
+ "photo_02.jpg": {
+  "source": "chatgpt",
+  "shows": [
+   "spin_fan_blade",
+   "watch_outdoor_fan"
+  ],
+  "part": 11,
+  "caption": "Fan hub and shaft rusted, bearing seizing",
+  "variant": "bearing"
+ },
+ "photo_03.jpg": {
+  "source": "chatgpt",
+  "shows": [
+   "inspect_capacitor",
+   "measure_fan_capacitor"
+  ],
+  "part": 13,
+  "caption": "Fan capacitor bulged and leaking",
+  "variant": "capacitor"
+ }
+}

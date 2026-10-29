@@ -24,7 +24,7 @@ from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import cardreader, coach, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import cardreader, coach, parts, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
 from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
@@ -229,6 +229,26 @@ async def investigate(
 
 # ------------------------------------------------------------------ job cards
 
+@app.get("/api/parts")
+def part_list():
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    _, outlined_by = parts.boxes()
+    items = parts.listing()
+    for it in items:
+        it["fault_titles"] = [titles.get(c, c) for c in it["faults"]]
+    return {"parts": items, "outlined_by": outlined_by,
+            "by_fault": {c: parts.parts_for(c) for c in parts.FAULT_PARTS},
+            "diagram": "/library/diagram/split_ac_exploded.png"}
+
+
+@app.get("/api/diagram.jpg")
+def diagram(highlight: str = ""):
+    nums = [int(x) for x in highlight.split(",") if x.strip().isdigit() and int(x) in parts.PARTS]
+    buf = io.BytesIO()
+    parts.highlight(nums).save(buf, format="JPEG", quality=85)
+    return Response(buf.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "max-age=3600"})
+
+
 @app.get("/api/jobcards")
 def jobcard_list():
     titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
@@ -387,6 +407,8 @@ def game_conclude(job_id: str, body: Conclude):
     result.update(player_title=titles.get(body.choice, body.choice),
                   coach_title=titles.get(coach_choice, coach_choice) if coach_choice else None,
                   checker=verdict, fix=knowledge.fault_guide(job.condition)["fix"],
+                  faulty_parts=[{"no": n, "name": parts.PARTS[n][0]} for n in parts.parts_for(job.condition, job.variant)],
+                  outlined_by=parts.boxes()[1],
                   steps=job.steps)
     job.concluded = result
     return result

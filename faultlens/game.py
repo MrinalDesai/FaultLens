@@ -44,10 +44,24 @@ ACTIONS = {
     "inspect_condenser_fins": ("Inspect", "Inspect the outdoor coil fins", "Shine a torch through the outdoor coil from the fan side.", POWER_OFF, False),
     "inspect_joints":      ("Inspect", "Inspect pipe joints and valves", "Check the flare nuts and service valves at both units for oily residue.", ANY, False),
     "inspect_capacitor":   ("Inspect", "Inspect the capacitors", "Remove the outdoor unit's electrical cover and look at the run and fan capacitors.", POWER_OFF, False),
+    "inspect_fan_motor":   ("Inspect", "Open the outdoor fan motor", "Remove the fan motor's end cover and look at the windings with a torch.", POWER_OFF, False),
     "spin_fan_blade":      ("Inspect", "Spin the outdoor fan by hand", "With power isolated, spin the outdoor fan blade by hand.", POWER_OFF, False),
     "measure_capacitor":   ("Measure", "Measure the compressor capacitor", "Discharge the run capacitor and measure it with a capacitance meter.", POWER_OFF, False),
     "measure_fan_capacitor": ("Measure", "Measure the fan capacitor", "Discharge the fan capacitor and measure it.", POWER_OFF, False),
     "measure_thermistor":  ("Measure", "Measure the room sensor", "Unplug the indoor room-temperature sensor and measure its resistance.", POWER_OFF, False),
+}
+
+# The specific cause behind a fault, picked per job so findings and photos agree.
+VARIANTS = {
+    "condenser_fan_failure": {"bearing": "Seized, rusted fan bearing",
+                              "motor": "Burnt fan motor winding",
+                              "capacitor": "Failed fan capacitor"},
+    "low_refrigerant": {"flare": "Leak at a flare nut", "pipe": "Pinhole in a corroded copper pipe",
+                        "hidden": "Leak not visible (found with a leak detector)"},
+    "failed_compressor_capacitor": {"domed": "Run capacitor swollen and leaking",
+                                    "looks_normal": "Run capacitor failed inside, looks normal outside"},
+    "faulty_room_thermistor": {"broken": "Room sensor cracked, wire broken",
+                               "loose": "Room sensor fallen out of its clip onto the cold coil"},
 }
 
 # Signals revealed by an action, for the pattern model and the images.
@@ -93,6 +107,7 @@ def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> d
         "inspect_joints": "Flare nuts and service valves are clean and dry.",
         "inspect_capacitor": "Both capacitors look normal: flat tops, no leaks, no scorch marks.",
         "spin_fan_blade": "The blade spins freely and coasts to a smooth stop.",
+        "inspect_fan_motor": "The windings are clean copper, no discolouration or burnt smell.",
         "measure_capacitor": f"Run capacitor rated 35 uF reads {rng.uniform(33.8, 35.6):.1f} uF. Within tolerance.",
         "measure_fan_capacitor": f"Fan capacitor rated 2.5 uF reads {rng.uniform(2.4, 2.6):.2f} uF. Within tolerance.",
         "measure_thermistor": "Room sensor resistance matches its table for the current temperature.",
@@ -109,35 +124,53 @@ def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> d
                                   else "The fan turns slowly, well below normal speed, and seems to struggle.")
         r["listen_compressor"] = "The compressor starts, labours louder and louder, and cuts out after a few minutes."
         r["feel_supply_air"] = f"Airflow is fine but the air is barely cool: {rng.uniform(17, 21):.1f} C."
-        r["spin_fan_blade"] = rng.choice(["The blade is stiff and hard to turn: the bearing is seizing.",
-                                          "The blade spins freely, so the motor or its capacitor is the problem."])
-        if "freely" in r["spin_fan_blade"]:
+        v = r["_variant"] = rng.choice(["bearing", "motor", "capacitor"])
+        if v == "bearing":
+            r["spin_fan_blade"] = "The blade is stiff and grinds when turned. The hub and shaft are badly rusted: the bearing is seizing."
+            r["watch_outdoor_fan"] += " The hub is caked in rust."
+        else:
+            r["spin_fan_blade"] = "The blade spins freely, so the motor or its capacitor is the problem."
+        if v == "motor":
+            r["inspect_fan_motor"] = "The windings are burnt black, with melted varnish and a strong burnt smell. The motor has failed."
+            r["measure_fan_capacitor"] += " The capacitor is fine."
+        if v == "capacitor":
             r["measure_fan_capacitor"] = f"Fan capacitor rated 2.5 uF reads {rng.uniform(0.2, 0.9):.2f} uF. Failed."
+            r["inspect_capacitor"] = "The run capacitor looks normal, but the small fan capacitor's top is bulged with brown oil running down its side."
     elif cond == "low_refrigerant":
         r["inspect_coil"] = "Frost on the inlet end of the indoor coil only. The rest of the coil is not cold."
-        r["inspect_joints"] = ("Oily, dust-caked residue around the outdoor suction valve flare nut."
-                               if rng.random() < 0.8 else "No obvious residue at the joints.")
+        v = r["_variant"] = rng.choices(["flare", "pipe", "hidden"], weights=[5, 3, 2])[0]
+        r["inspect_joints"] = {
+            "flare": "Oily, dust-caked residue around the outdoor suction valve flare nut.",
+            "pipe": "The joints are dry, but under split insulation near the outdoor unit the copper is green with corrosion and has a pinhole.",
+            "hidden": "No obvious residue at the joints or on the pipes.",
+        }[v]
         r["feel_supply_air"] = f"Airflow is fine but the air is only cool: {rng.uniform(18, 21):.1f} C."
         r["gauge_pressures"] = (f"Suction {med('suction_psig') or rng.uniform(65, 85):.0f} psi (low), "
                                 f"discharge {med('discharge_psig') or rng.uniform(230, 280):.0f} psi (low).")
     elif cond == "dirty_condenser_coil":
         r["inspect_condenser_fins"] = ("Little light passes: a mat of dust, lint and leaves on the outdoor fins." if not mild
-                                       else "Patches of dirt across the fins. Light passes in some places only.")
+                                       else "Patches of dirt across the fins. Light passes in some places only.") + \
+            " A patch of fins is also bent flat, blocking more air."
         r["feel_supply_air"] = f"Airflow is fine. Air at the louvres is {rng.uniform(15, 17.5):.1f} C."
     elif cond == "failed_compressor_capacitor":
         r["listen_compressor"] = "A loud hum from the outdoor unit for 2-3 seconds, then a click and silence. The fan keeps running."
         r["feel_supply_air"] = f"Airflow is fine but the air is not cold: {rng.uniform(27, 30):.1f} C."
-        r["inspect_capacitor"] = rng.choice(["The run capacitor's top is domed and there is brown residue at the terminals.",
-                                             "The run capacitor looks normal from the outside."])
-        r["measure_capacitor"] = f"Run capacitor rated 35 uF reads {rng.uniform(3, 12):.1f} uF. Failed."
+        v = r["_variant"] = rng.choices(["domed", "looks_normal"], weights=[7, 3])[0]
+        r["inspect_capacitor"] = ("The run capacitor's top is domed, scorched at the terminals, with oil running down the side."
+                                  if v == "domed" else "The run capacitor looks normal from the outside.")
+        r["measure_capacitor"] = "Run capacitor rated 35 uF reads 18.2 uF. Failed (should be within 5% of 35)."
         r["gauge_pressures"] = "Suction and discharge read the same: the compressor is not pumping."
     elif cond == "faulty_room_thermistor":
         r["watch_outdoor_fan"] = "The outdoor unit is not running at all."
         r["listen_compressor"] = "Nothing starts outside. The indoor fan keeps blowing."
         r["feel_supply_air"] = f"Airflow is fine but the air is at room temperature: {rng.uniform(28, 30):.1f} C."
-        r["compare_thermometer"] = (f"The unit reports {rng.uniform(17, 20):.0f} C; the thermometer reads "
-                                    f"{rng.uniform(28, 30):.0f} C.")
-        r["measure_thermistor"] = "Room sensor reads open circuit (no reading) at its connector."
+        v = r["_variant"] = rng.choice(["broken", "loose"])
+        r["compare_thermometer"] = "The unit reports 18 C; the thermometer beside it reads 27 C."
+        r["measure_thermistor"] = (
+            "The sensor tip is cracked and the wire insulation is split. It reads open circuit (no reading) at its connector."
+            if v == "broken" else
+            "The sensor's clip has broken and it hangs against the cold coil, so it measures the coil, not the room. "
+            "Its resistance is correct for the coil's temperature.")
         r["gauge_pressures"] = "Suction and discharge read the same: the compressor is off."
     return r
 
@@ -162,6 +195,7 @@ class Job:
     last_advice: dict | None = None
     concluded: dict | None = None
     sensor_rows: list = field(default_factory=list, repr=False)   # generated up front so gauges agree
+    variant: str = ""                                             # the specific cause, see VARIANTS
 
     def done_ids(self) -> list[str]:
         return [s["action"] for s in self.steps]
@@ -181,6 +215,7 @@ def new_job(condition: str | None = None, severity: float | None = None, seed: i
               complaint=rng.choice(COMPLAINTS[cond]), practice=practice)
     sensor_rows = sensors.generate(cond, seed=job.seed, severity=sev)
     job.results = _results(cond, sev, random.Random(job.seed), sensors.summarize(sensor_rows))
+    job.variant = job.results.pop("_variant", "")
     job.sensor_rows = sensor_rows
     JOBS[job.id] = job
     return job
@@ -200,20 +235,31 @@ def action_menu(job: Job) -> list[dict]:
     return out
 
 
-def _photo_for(cond: str, action_id: str) -> dict | None:
-    """A library photo for this action and condition, if one was added."""
+def _photos_for(cond: str, action_id: str, variant: str = "") -> list[dict]:
+    """Library photos for this action and condition. An entry in photos.json can show on one
+    step or several ("shows": "inspect_coil" or a list), and can be limited to one specific
+    cause ("variant": "motor"), so a job never shows a photo that contradicts its findings."""
     folder = library.LIBRARY / cond / "photos"
     meta_path = folder / "photos.json"
     if not meta_path.exists():
-        return None
+        return []
     try:
         meta = json.loads(meta_path.read_text())
     except json.JSONDecodeError:
-        return None
+        return []
+    out = []
     for name, info in meta.items():
-        if isinstance(info, dict) and info.get("shows") == action_id and (folder / name).exists():
-            return {"url": f"/library/{cond}/photos/{name}", "source": info.get("source", "unlabelled")}
-    return None
+        if not isinstance(info, dict) or not (folder / name).exists():
+            continue
+        shows = info.get("shows")
+        shows = shows if isinstance(shows, list) else [shows]
+        if action_id not in shows:
+            continue
+        if info.get("variant") and info["variant"] != variant:
+            continue
+        out.append({"url": f"/library/{cond}/photos/{name}", "source": info.get("source", "unlabelled"),
+                    "caption": info.get("caption", ""), "part": info.get("part")})
+    return out
 
 
 def perform(job: Job, action_id: str) -> dict:
@@ -271,9 +317,10 @@ def perform(job: Job, action_id: str) -> dict:
                 found["card"] = {"image": card["image"]}
     else:
         found["finding"] = job.results[action_id]
-    photo = _photo_for(job.condition, action_id)
-    if photo:
-        found["photo"] = photo
+    photos = _photos_for(job.condition, action_id, job.variant)
+    if photos:
+        found["photos"] = photos
+        found["photo"] = photos[0]
     job.steps.append({"action": action_id, "title": title, "finding": found["finding"], "t": round(time.time() - job.started)})
     return found
 
@@ -310,6 +357,7 @@ def score(job: Job, player_choice: str, coach_choice: str | None) -> dict:
     titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
     return {
         "actual": job.condition, "actual_title": titles.get(job.condition, job.condition),
+        "actual_cause": VARIANTS.get(job.condition, {}).get(job.variant, ""),
         "severity": job.severity, "player_choice": player_choice, "player_correct": correct,
         "coach_choice": coach_choice, "coach_correct": coach_choice == job.condition if coach_choice else None,
         "checks_used": len(checks), "unsafe_attempts": unsafe, "seconds": round(time.time() - job.started),

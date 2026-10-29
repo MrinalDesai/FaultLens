@@ -74,8 +74,11 @@ def _photo_list(cond: str) -> list[dict]:
     out = []
     for p in sorted(folder.iterdir()):
         if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+            info = meta.get(p.name, {})
+            info = info if isinstance(info, dict) else {"source": info}   # older format: just the source
             out.append({"file": p.name, "url": f"/library/{cond}/photos/{p.name}",
-                        "source": meta.get(p.name, "unlabelled")})
+                        "source": info.get("source", "unlabelled"), "caption": info.get("caption", ""),
+                        "part": info.get("part"), "variant": info.get("variant")})
     return out
 
 

@@ -37,6 +37,16 @@ The **Explore faults** view is a working simulation of every fault. Each fault h
 
 Pick a fault, listen to it, compare the thermal images, then press **Investigate this sample**. Or download the files and upload them under **Investigate**, which is exactly what a technician does in the field with their own recordings.
 
+## Parts and photos
+
+**Explore faults → Parts of the unit** shows a numbered exploded view of the split AC and a photo of each healthy part. Each fault page outlines its faulty part on the exploded view and shows the healthy part next to the damaged one: a burnt fan-motor winding, a rusted fan hub, a swollen capacitor, an oily flare nut, frost on the coil.
+
+In a job, the specific cause is picked per unit (for example, the outdoor fan has stopped because of a seized bearing, a burnt motor winding or a failed capacitor), and the findings and photos match that cause. The reveal outlines the faulty part.
+
+The outlines come from **SAM 3.1** once you run `python -m faultlens.parts --sam` (it saves `library/diagram/parts_sam.json`). Until then, boxes drawn by hand are used, and the app says which. SAM is given each part's name and returns every match; FaultLens keeps the one on the right part, which matters on a diagram with two capacitors.
+
+The exploded view and all part and fault photos are generated with ChatGPT, and labelled as generated wherever they appear.
+
 ## Job cards: reading handwriting
 
 Service technicians still write job cards by hand. The **Job cards** view holds 14 handwritten cards from earlier visits, two per condition, as PDF and image. Pick one, or upload your own PDF or photo, and FaultLens:
@@ -67,13 +77,17 @@ Results on separately generated test units the model never saw (`models/pattern_
 
 | Signals used | Correct, all severities | Correct, mild faults (15-35%) |
 |---|---|---|
-| Sound only | 78% | 66% |
-| Thermal, indoor coil only | 52% | 46% |
-| Thermal, outdoor unit only | 83% | 72% |
-| Sensor log only | 90% | 77% |
-| **All four combined** | **97.5%** | **90%** |
+| Sound only | 82% | 65% |
+| Thermal, indoor coil only | 55% | 46% |
+| Thermal, outdoor unit only | 83% | 70% |
+| Sensor log only | 90% | 74% |
+| **All four combined** | **98%** | **94%** |
 
 No single signal is reliable on its own; combined, they are, and accuracy stays above 94% with any one signal missing. The **How it was tested** view shows the full report and where the model still gets confused.
+
+**Honest confidence.** Each signal's model was overconfident on its own: it said 99% when it was right far less often. After training, its confidence is adjusted on a separate set of units, so that when the model says "80% sure" it is right about 80% of the time. The combined answer averages 98% confidence for 98% accuracy (95% for 94% on mild faults). This matters because the agent and the checker weigh the pattern match against what they see themselves.
+
+Training and testing take about 2 minutes on a laptop (`python -m faultlens.pattern`).
 
 ## Data: what is simulated and what is not
 
@@ -126,6 +140,7 @@ faultlens/
   checker.py               Independent checker (Muse Spark Open)
   safety.py                Fixed safety rules applied after the model
   pipeline.py              One full round: parts, patterns, agent, safety, checker
+  parts.py                 Exploded view, parts list, outlines (SAM 3.1 or by hand)
   jobcards.py              Generates the handwritten job cards (PDF, image, true contents)
   cardreader.py            Reads a job card into fields (Muse Spark Open on Fireworks)
   fonts/                   Handwriting fonts and their licences (SIL OFL)

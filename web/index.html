@@ -308,6 +308,21 @@ pre.json { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ink
 td.match { color: var(--ok); }
 td.nomatch { color: var(--high); }
 .mini { font-size: .88rem; }
+
+/* ---------- parts ---------- */
+.diagram { width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; display: block; }
+.partgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.partgrid figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 8px; cursor: pointer; }
+.partgrid figure[aria-current="true"] { border-color: var(--high); box-shadow: inset 0 0 0 2px var(--high); }
+.partgrid img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border-radius: var(--radius-s); }
+.noimg { aspect-ratio: 1; display: grid; place-items: center; background: var(--ground); border-radius: var(--radius-s); color: var(--ink-soft); font-size: .8rem; }
+.partgrid figcaption { font-size: .85rem; margin-top: 6px; }
+.pno { display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; border-radius: 50%; border: 1.5px solid var(--ink); font-weight: 600; font-size: .8rem; margin-right: 4px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.logphotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.logphotos figure { margin: 0; }
+.logphotos img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--rule); background: #fff; }
 </style>
 </head>
 <body>
@@ -527,6 +542,41 @@ fetch("/api/profile").then(r => r.json()).then(p => {
     $("#libSample").insertAdjacentHTML("beforeend", `<option value="${esc(c.condition)}/${esc(s.id)}">${esc(c.title)}, ${esc(sampleLabel(s, c.condition))}</option>`);
 }).catch(() => $("#unit").textContent = "Server not reachable. Is web/server.py running?");
 
+state.parts = { parts: [], by_fault: {}, outlined_by: "" };
+fetch("/api/parts").then(r => r.json()).then(b => { state.parts = b; if (state.view === "parts") renderParts(); });
+const partName = n => (state.parts.parts.find(p => p.no === n) || {}).name || `Part ${n}`;
+const diagramUrl = nums => `/api/diagram.jpg?highlight=${nums.join(",")}`;
+
+function photoFigure(p) {
+  return `<figure><img src="${esc(p.url)}" alt="${esc(p.caption || "Photo")}" loading="lazy">
+    <figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption || "")}
+      <span class="source ${esc(p.source)}">${esc(SOURCE_TEXT[p.source] || p.source)}</span></figcaption></figure>`;
+}
+
+function renderParts(selected = null) {
+  state.cond = null; renderConditions();
+  const P = state.parts;
+  $("#detail").innerHTML = `
+    <div class="panel" style="display:grid;gap:10px">
+      <h2>Parts of the unit</h2>
+      <p>Exploded view of a fixed-speed split AC. Pick a part to see where it sits and which faults involve it.</p>
+      <img class="diagram" id="partsDiagram" src="${diagramUrl(selected ? [selected] : [])}" alt="Exploded view of the split AC with numbered parts">
+      <p class="hint">Outlines: ${esc(P.outlined_by)}. Diagram and part photos generated (ChatGPT).</p>
+    </div>
+    <div class="panel"><div class="partgrid">${P.parts.map(p => `
+      <figure data-no="${p.no}" aria-current="${p.no === selected}">
+        ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : `<div class="noimg">No photo</div>`}
+        <figcaption><span class="pno">${p.no}</span>${esc(p.name)}
+          <br><span class="hint">${esc(p.unit)}${p.fault_titles.length ? ". " + esc(p.fault_titles.filter((t, i) => p.faults[i] !== "normal").join("; ")) : ""}</span></figcaption>
+      </figure>`).join("")}</div></div>`;
+  $("#detail").querySelectorAll(".partgrid figure").forEach(f => f.addEventListener("click", () => {
+    const n = +f.dataset.no;
+    $("#partsDiagram").src = diagramUrl([n]);
+    $("#detail").querySelectorAll(".partgrid figure").forEach(x => x.setAttribute("aria-current", x === f));
+    $("#partsDiagram").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }));
+}
+
 function sampleLabel(s, cond) {
   const n = "Sample " + parseInt(s.id.split("_").pop(), 10);
   if (cond === "normal" || s.severity == null) return n;
@@ -534,12 +584,14 @@ function sampleLabel(s, cond) {
 }
 
 function renderConditions() {
-  $("#conditions").innerHTML = state.library.map(c => `
+  $("#conditions").innerHTML = `<button type="button" role="listitem" data-c="__parts" aria-current="${state.cond == null && state.view === "parts"}">
+      <b>Parts of the unit</b><small>Exploded view, 18 parts</small></button>` + state.library.map(c => `
     <button type="button" role="listitem" data-c="${esc(c.condition)}" aria-current="${c.condition === state.cond}">
       <b>${esc(c.title)}</b>
       <small>${c.samples.length} sample${c.samples.length === 1 ? "" : "s"}${c.photos.length ? `, ${c.photos.length} photo${c.photos.length === 1 ? "" : "s"}` : ""}</small>
     </button>`).join("");
-  $("#conditions").querySelectorAll("button").forEach(b => b.addEventListener("click", () => selectCondition(b.dataset.c)));
+  $("#conditions").querySelectorAll("button").forEach(b => b.addEventListener("click", () =>
+    b.dataset.c === "__parts" ? (state.view = "parts", renderParts()) : (state.view = "fault", selectCondition(b.dataset.c))));
 }
 
 function selectCondition(cond) {
@@ -550,12 +602,29 @@ function selectCondition(cond) {
   renderDetail();
 }
 
+function whereItIs(c) {
+  const nums = state.parts.by_fault[c.condition] || [];
+  if (!nums.length) return "";
+  const pairs = nums.map(n => {
+    const healthy = state.parts.parts.find(p => p.no === n);
+    const bad = c.photos.find(p => p.part === n);
+    if (!healthy?.image && !bad) return "";
+    return `<div><h3 style="margin:10px 0 6px"><span class="pno">${n}</span>${esc(partName(n))}</h3><div class="compare">
+      <figure style="margin:0">${healthy?.image ? `<img src="${esc(healthy.image)}" alt="Healthy ${esc(partName(n))}">` : `<div class="noimg">No photo</div>`}<figcaption class="hint">Healthy</figcaption></figure>
+      <figure style="margin:0">${bad ? `<img src="${esc(bad.url)}" alt="${esc(bad.caption)}"><figcaption class="hint">${esc(bad.caption)}</figcaption>` : `<div class="noimg">Not visibly damaged</div>`}</figure>
+    </div></div>`;
+  }).join("");
+  return `<div class="panel"><h3 style="margin-bottom:10px">Where it is</h3>
+    <img class="diagram" src="${diagramUrl(nums)}" alt="Exploded view with ${esc(nums.map(partName).join(", "))} outlined">
+    <p class="hint" style="margin-top:6px">Outlined: ${nums.map(n => `#${n} ${esc(partName(n))}`).join(", ")}. Outlines ${esc(state.parts.outlined_by)}.</p>
+    ${pairs}</div>`;
+}
+
 async function renderDetail() {
   const c = state.library.find(x => x.condition === state.cond);
   const s = c.samples.find(x => x.id === state.sample);
   const photos = c.photos.length
-    ? `<div class="frames">${c.photos.map(p => `<figure><img src="${esc(p.url)}" alt="${esc(c.title)} photo">
-         <figcaption><span class="source ${esc(p.source)}">${esc(SOURCE_TEXT[p.source] || p.source)}</span></figcaption></figure>`).join("")}</div>`
+    ? `<div class="logphotos">${c.photos.map(photoFigure).join("")}</div>`
     : `<p class="hint">No photos yet. Put images in <code>library/${esc(c.condition)}/photos/</code> and record where each came from in <code>photos.json</code>.</p>`;
 
   $("#detail").innerHTML = `
@@ -566,12 +635,14 @@ async function renderDetail() {
         `<button type="button" role="tab" data-s="${esc(x.id)}" aria-current="${x.id === state.sample}">${esc(sampleLabel(x, c.condition))}</button>`).join("")}</div>` : ""}
     </div>
     <div class="panel" id="sampleBody"><p class="hint">Loading sample…</p></div>
+    ${whereItIs(c)}
     <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault</h3>${photos}</div>`;
   $("#detail").querySelectorAll(".samples button").forEach(b => b.addEventListener("click", () => { state.sample = b.dataset.s; renderDetail(); }));
   if (!s) { $("#sampleBody").innerHTML = `<p class="hint">No samples for this condition.</p>`; return; }
 
   const r = await fetch(`/api/library/${encodeURIComponent(c.condition)}/${encodeURIComponent(s.id)}`);
   const body = await r.json();
+  if (!$("#sampleBody") || state.cond !== c.condition || state.sample !== s.id) return;   // view changed while loading
   if (!r.ok) { $("#sampleBody").innerHTML = `<div class="error">${esc(body.detail)}</div>`; return; }
   const src = k => `<span class="source ${esc(s.sources[k] || "")}">${esc(SOURCE_TEXT[s.sources[k]] || s.sources[k] || "")}</span>`;
   $("#sampleBody").innerHTML = `
@@ -896,6 +967,7 @@ async function loadReport() {
     <table><thead><tr><th>Signals used</th><th>Correct, all severities</th><th>Correct, mild faults</th></tr></thead>
       <tbody>${rows}<tr><td><b>All four combined</b></td><td class="num score">${pct(all.fused_accuracy)}</td><td class="num score">${pct(mild.fused_accuracy)}</td></tr>${loo}</tbody></table>
     <p>No single signal is reliable on its own. Combined, they are, and the answer holds up when any one signal is missing.</p>
+    ${all.fused_average_confidence != null ? `<p><b>Honest confidence:</b> when all four signals are combined, the model is ${pct(all.fused_average_confidence)} sure on average and right ${pct(all.fused_accuracy)} of the time (mild faults: ${pct(mild.fused_average_confidence)} sure, ${pct(mild.fused_accuracy)} right). Each signal's confidence was adjusted on a separate set of units so it does not claim more than it knows.</p>` : ""}
     <details><summary>Where it still gets confused (all severities)</summary><div style="overflow-x:auto;margin-top:8px">${cmHtml}</div></details>`;
 }
 
@@ -1001,7 +1073,7 @@ async function doAction(id) {
     if (v.sensor_summary) media += sensorTable(v.sensor_summary, true);
     if (f.card) media += `<div class="cardview"><img src="${esc(f.card.image)}" alt="Previous job card">
       ${f.card.fields ? `<div><p class="hint">Read by ${esc(f.card.model)}, ${f.card.seconds}s</p><pre class="json">${esc(JSON.stringify(f.card.fields, null, 2))}</pre></div>` : ""}</div>`;
-    if (f.photo) media += `<img src="${esc(f.photo.url)}" alt="${esc(f.title)}"><span class="source ${esc(f.photo.source)}">${esc(SOURCE_TEXT[f.photo.source] || f.photo.source)}</span>`;
+    if (f.photos) media += `<div class="logphotos">${f.photos.map(photoFigure).join("")}</div>`;
     logMsg("tech", `<span class="who">You: ${esc(f.title)}</span><p class="hint">${esc(f.how)}</p>
       ${f.warning ? `<p class="wrong">${esc(f.warning)}</p>` : ""}<p><b>${esc(f.finding)}</b></p>${media}`);
     renderPattern(body.pattern_match);
@@ -1088,6 +1160,9 @@ function openConclude() {
     const chk = s.checker;
     p.innerHTML = `<div class="reveal">
       <h2>The fault was: ${esc(s.actual_title)}${s.actual !== "normal" ? ` <span class="hint">(${Math.round(s.severity * 100)}% severity)</span>` : ""}</h2>
+      ${s.actual_cause ? `<p><b>Cause on this unit:</b> ${esc(s.actual_cause)}</p>` : ""}
+      ${s.faulty_parts?.length ? `<img class="diagram" src="${diagramUrl(s.faulty_parts.map(p => p.no))}" alt="Faulty part outlined on the exploded view">
+        <p class="hint">${s.faulty_parts.map(p => `#${p.no} ${esc(p.name)}`).join(", ")}. Outlines ${esc(s.outlined_by)}.</p>` : ""}
       <div class="verdicts">
         <div>You said<br><b class="${s.player_correct ? "right" : "wrong"}">${esc(s.player_title)}</b></div>
         <div>FaultLens said<br><b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b></div>

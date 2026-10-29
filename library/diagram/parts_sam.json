@@ -1,0 +1,86 @@
+{
+ "model": "sam-3.1",
+ "method": "close-up crop per part",
+ "boxes": {
+  "3": [
+   369,
+   121,
+   734,
+   332
+  ],
+  "4": [
+   434,
+   281,
+   734,
+   465
+  ],
+  "6": [
+   153,
+   473,
+   311,
+   579
+  ],
+  "7": [
+   686,
+   482,
+   778,
+   573
+  ],
+  "11": [
+   1008,
+   299,
+   1186,
+   579
+  ],
+  "13": [
+   1284,
+   369,
+   1325,
+   441
+  ],
+  "15": [
+   1426,
+   293,
+   1484,
+   427
+  ],
+  "16": [
+   1579,
+   639,
+   1620,
+   688
+  ],
+  "17": [
+   433,
+   698,
+   1302,
+   876
+  ],
+  "18": [
+   1585,
+   341,
+   1638,
+   408
+  ]
+ },
+ "log": {
+  "1": "not found, hand box kept; tried 'front panel': 0 (0 on the part), 'plastic cover': 0 (0 on the part), 'panel': 0 (0 on the part)",
+  "2": "not found, hand box kept; tried 'air filter': 1 (0 on the part), 'mesh filter': 1 (0 on the part), 'filter': 1 (0 on the part)",
+  "3": "found (overlap with hand box 0.90); tried 'evaporator coil': 0 (0 on the part), 'heat exchanger': 0 (0 on the part), 'radiator': 1 (1 on the part)",
+  "4": "found (overlap with hand box 0.65); tried 'blower wheel': 0 (0 on the part), 'fan wheel': 0 (0 on the part), 'cylinder': 1 (1 on the part)",
+  "5": "not found, hand box kept; tried 'small motor': 0 (0 on the part), 'motor': 0 (0 on the part)",
+  "6": "found (overlap with hand box 0.90); tried 'sensor with wire': 1 (1 on the part)",
+  "7": "found (overlap with hand box 0.78); tried 'circuit board': 1 (1 on the part)",
+  "8": "not found, hand box kept; tried 'drain pan': 0 (0 on the part), 'tray': 0 (0 on the part), 'hose': 1 (1 on the part)",
+  "9": "not found, hand box kept; tried 'remote control': 0 (0 on the part), 'remote': 0 (0 on the part), 'display': 1 (1 on the part)",
+  "10": "not found, hand box kept; tried 'condenser coil': 0 (0 on the part), 'heat exchanger': 0 (0 on the part), 'radiator': 0 (0 on the part)",
+  "11": "found (overlap with hand box 0.92); tried 'fan blade': 1 (1 on the part), 'propeller': 1 (1 on the part)",
+  "12": "not found, hand box kept; tried 'electric motor': 0 (0 on the part), 'motor': 0 (0 on the part)",
+  "13": "found (overlap with hand box 0.65); tried 'capacitor': 0 (0 on the part), 'cylinder': 1 (1 on the part)",
+  "14": "not found, hand box kept; tried 'compressor': 0 (0 on the part), 'black cylinder': 1 (1 on the part), 'tank': 1 (1 on the part)",
+  "15": "found (overlap with hand box 0.70); tried 'capacitor': 1 (1 on the part)",
+  "16": "found (overlap with hand box 0.24); tried 'brass valve': 1 (1 on the part), 'valve': 1 (1 on the part), 'fitting': 1 (1 on the part)",
+  "17": "found (overlap with hand box 0.62); tried 'insulated pipe': 1 (1 on the part), 'pipe': 1 (1 on the part), 'hose': 1 (1 on the part)",
+  "18": "found (overlap with hand box 0.46); tried 'relay': 0 (0 on the part), 'switch': 0 (0 on the part), 'electrical component': 1 (1 on the part)"
+ }
+}

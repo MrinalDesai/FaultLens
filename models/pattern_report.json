@@ -1,6 +1,25 @@
 {
  "data": "SIMULATED reference signatures only (faultlens/simulate.py). Not field recordings.",
  "trained_on": "1400 simulated units (200 per condition), fault severity 15-100%",
+ "calibration": {
+  "temperatures": {
+   "sound": 1.69,
+   "thermal_indoor": 2.36,
+   "thermal_outdoor": 2.0,
+   "sensors": 1.79,
+   "fused": 0.87
+  },
+  "fused_before": {
+   "accuracy": 0.974,
+   "average_confidence": 0.976,
+   "calibration_error": 0.008
+  },
+  "fused_after": {
+   "accuracy": 0.986,
+   "average_confidence": 0.981,
+   "calibration_error": 0.007
+  }
+ },
  "test_all_severities": {
   "cases": 420,
   "single_signal_accuracy": {
@@ -9,12 +28,14 @@
    "thermal_outdoor": 0.833,
    "sensors": 0.9
   },
-  "fused_accuracy": 0.971,
+  "fused_accuracy": 0.981,
+  "fused_average_confidence": 0.983,
+  "fused_calibration_error": 0.014,
   "fused_accuracy_missing_one_signal": {
-   "without_sound": 0.962,
-   "without_thermal_indoor": 0.929,
-   "without_thermal_outdoor": 0.964,
-   "without_sensors": 0.943
+   "without_sound": 0.981,
+   "without_thermal_indoor": 0.943,
+   "without_thermal_outdoor": 0.962,
+   "without_sensors": 0.976
   },
   "confusion_matrix": {
    "labels": [
@@ -28,17 +49,17 @@
    ],
    "rows_true_cols_predicted": [
     [
-     57,
-     1,
+     60,
      0,
      0,
-     2,
+     0,
+     0,
      0,
      0
     ],
     [
-     3,
-     57,
+     2,
+     58,
      0,
      0,
      0,
@@ -55,8 +76,8 @@
      0
     ],
     [
-     2,
      1,
+     2,
      0,
      57,
      0,
@@ -101,12 +122,14 @@
    "thermal_outdoor": 0.7,
    "sensors": 0.738
   },
-  "fused_accuracy": 0.914,
+  "fused_accuracy": 0.936,
+  "fused_average_confidence": 0.954,
+  "fused_calibration_error": 0.033,
   "fused_accuracy_missing_one_signal": {
-   "without_sound": 0.895,
-   "without_thermal_indoor": 0.805,
-   "without_thermal_outdoor": 0.855,
-   "without_sensors": 0.905
+   "without_sound": 0.945,
+   "without_thermal_indoor": 0.812,
+   "without_thermal_outdoor": 0.862,
+   "without_sensors": 0.95
   },
   "confusion_matrix": {
    "labels": [
@@ -129,8 +152,8 @@
      0
     ],
     [
-     15,
-     45,
+     12,
+     48,
      0,
      0,
      0,
@@ -156,11 +179,11 @@
      0
     ],
     [
-     12,
+     6,
      0,
      0,
      0,
-     48,
+     54,
      0,
      0
     ],
@@ -185,5 +208,5 @@
    ]
   }
  },
- "seconds": 9542.0
+ "seconds": 139.2
 }
