@@ -3,7 +3,9 @@
 Three ways of answering each case:
   rules          hand-written sensor rules only (baseline, free)
   agent_sensors  the agent with sensor data only
-  agent_full     the agent with sensors + technician observation (+ checker)
+  agent_full     the agent with sensors + technician observation + alarm history (+ checker)
+
+For the agent modes it also scores how well each conclusion cites its evidence (eval/citations.py).
 
 Reports top-1 accuracy, how often it asked for more evidence, and accuracy when
 it claimed to be confident. Results go to data/runs/.
@@ -20,7 +22,8 @@ import json
 import time
 from pathlib import Path
 
-from faultlens import config, sensors
+from eval import citations
+from faultlens import alarms, config, sensors
 from faultlens.agent import Evidence
 from faultlens.pipeline import run_round
 
@@ -38,6 +41,8 @@ def score(rows: list[dict]) -> dict:
         "asked_for_more_evidence": round(sum(r["status"] != "confident" for r in rows) / n, 3),
         "accuracy_when_confident": round(sum(r["correct"] for r in confident) / len(confident), 3)
         if confident else None,
+        **({"evidence": citations.summarize([r["citations"] for r in rows if r.get("citations")])}
+           if any(r.get("citations") for r in rows) else {}),
     }
 
 
@@ -76,17 +81,23 @@ def evaluate(files: list[Path], modes: list[str], verbose: bool = False) -> tupl
                 second = ranked[1][1]
                 status = "confident" if prob - second >= 0.2 else "need_more_evidence"
                 tokens = (0, 0)
+                cites = None
             else:
-                notes = case["notes"] if mode == "agent_full" else []
-                out = run_round(Evidence(sensor_rows=rows, notes=notes), use_checker=(mode == "agent_full"))
+                full = mode == "agent_full"
+                notes = case["notes"] if full else []
+                alarm_rows = alarms.from_csv(case["alarm_csv"]) if full and case.get("alarm_csv") else []
+                ev = Evidence(sensor_rows=rows, notes=notes, alarms=alarm_rows, alarms_given=bool(full and case.get("alarm_csv")))
+                out = run_round(ev, use_checker=full)
                 hyps = out["assessment"]["hypotheses"]
                 top = hyps[0]["fault_id"] if hyps else None
                 status = out["assessment"]["status"]
                 tokens = (out["usage"]["input_tokens"], out["usage"]["output_tokens"])
+                cites = citations.check_assessment(out["assessment"], rows, notes, alarm_rows, ev.alarms_given,
+                                                   [case.get("hidden_channel")], {}, out.get("pattern_match"))
             results.append({
                 "case": case["id"], "label": case["label"], "hard": case["hard"], "mode": mode,
                 "predicted": top, "correct": top == case["label"], "status": status,
-                "input_tokens": tokens[0], "output_tokens": tokens[1],
+                "input_tokens": tokens[0], "output_tokens": tokens[1], "citations": cites,
             })
             if verbose:
                 print(f"{case['id']:<34} {mode:<14} -> {top} ({status})")
@@ -103,9 +114,13 @@ def evaluate(files: list[Path], modes: list[str], verbose: bool = False) -> tupl
     RUNS.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     with open(RUNS / f"results-{stamp}.csv", "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=list(results[0].keys()))
+        w = csv.DictWriter(f, fieldnames=[k for k in results[0].keys() if k != "citations"] + ["evidence_items", "evidence_grounded", "citation_problems"])
         w.writeheader()
-        w.writerows(results)
+        for r in results:
+            c = r.get("citations") or {}
+            w.writerow({**{k: v for k, v in r.items() if k != "citations"}, "evidence_items": c.get("items", ""),
+                        "evidence_grounded": c.get("grounded", ""),
+                        "citation_problems": "; ".join(f"{p['evidence']} -> {', '.join(p['problems'])}" for p in c.get("problems", []))})
     (RUNS / f"report-{stamp}.json").write_text(json.dumps(report, indent=1))
     return results, report
 

@@ -1,0 +1,47 @@
+# Public documentation behind each fault in split_ac.yaml.
+# Each source was opened and read on 29 Oct 2026; "supports" says what that source actually covers.
+# Where no public source covers a step, "not_covered" says so: that step is from general service practice.
+
+sources:
+  doe_ac_maintenance:
+    title: "Air Conditioner Maintenance (U.S. Department of Energy, Energy Saver)"
+    url: https://www.energy.gov/energysaver/maintaining-your-air-conditioner
+  energystar_checklist:
+    title: "Maintenance Checklist (ENERGY STAR, U.S. EPA)"
+    url: https://www.energystar.gov/saveathome/heating-cooling/maintenance-checklist
+  epa_608_certification:
+    title: "Section 608 Technician Certification (U.S. EPA)"
+    url: https://www.epa.gov/section608/section-608-technician-certification-0
+  osha_lockout:
+    title: "29 CFR 1910.147, The control of hazardous energy (lockout/tagout)"
+    url: https://www.law.cornell.edu/cfr/text/29/1910.147
+
+faults:
+  normal:
+    - {source: energystar_checklist, supports: "Routine checks: thermostat settings, electrical connections, refrigerant level, coils, condensate drain, filters, controls"}
+  clogged_air_filter:
+    - {source: doe_ac_maintenance, supports: "Clogged filters reduce airflow and significantly reduce efficiency; dirt bypassing the filter fouls the evaporator coil; clean or replace every 1-2 months in cooling season"}
+    - {source: energystar_checklist, supports: "Inspect, clean or change filters once a month"}
+  condenser_fan_failure:
+    - {source: energystar_checklist, supports: "Tighten electrical connections and measure voltage and current on motors"}
+    - {source: doe_ac_maintenance, supports: "Technician should inspect electrical terminals, oil motors and check controls"}
+    - {source: osha_lockout, supports: "Isolate power and relieve stored energy (capacitors) before working on the fan motor"}
+  low_refrigerant:
+    - {source: doe_ac_maintenance, supports: "Technician should check the refrigerant charge, test for leaks with a leak detector, and capture refrigerant rather than release it"}
+    - {source: energystar_checklist, supports: "Too much or too little refrigerant lowers efficiency and equipment life"}
+    - {source: epa_608_certification, supports: "Servicing equipment that could release refrigerant requires a certified technician"}
+  dirty_condenser_coil:
+    - {source: doe_ac_maintenance, supports: "Outdoor coil gets very dirty in dusty areas or near foliage; keep debris away and trim foliage at least 2 ft (0.6 m) back"}
+    - {source: energystar_checklist, supports: "Dirty coils reduce cooling and make the system run longer"}
+  failed_compressor_capacitor:
+    - {source: osha_lockout, supports: "Stored energy (Appendix A lists capacitors) must be relieved before work"}
+    - {source: energystar_checklist, supports: "Check controls: the system starts, runs and shuts off correctly"}
+  faulty_room_thermistor:
+    - {source: doe_ac_maintenance, supports: "Technician should check thermostat accuracy"}
+    - {source: energystar_checklist, supports: "Check thermostat settings"}
+
+not_covered:
+  failed_compressor_capacitor: "No public source above covers measuring a run capacitor against its rating; that check is from general service practice."
+  faulty_room_thermistor: "The sources cover thermostat accuracy in general, not the unit's own room sensor; the resistance check is from general service practice."
+  condenser_fan_failure: "Spinning the blade by hand to find a seized bearing is from general service practice."
+  safety_rules: "Power isolation follows OSHA 1910.147; refrigerant work by certified technicians follows EPA Section 608."

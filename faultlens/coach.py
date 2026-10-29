@@ -29,6 +29,8 @@ How to coach:
 - Use only the evidence so far. The pattern match comes from a model trained on simulated signatures:
   treat it as one piece of evidence and say when the signals disagree.
 - Look at the images yourself (thermal images, spectrogram, photos) and use what you see.
+- The unit's fault history (read_alarm_log) says what the unit protected itself from, not which part failed:
+  E4 (too hot outside) fits a stopped fan and a dirty coil alike. An empty log does not rule a fault out.
 - The previous visit's job card (read_job_card) is history, not proof: a past fix can point to a cause,
   but confirm it on the unit today.
 - Set ready_to_conclude only when one cause is clearly ahead AND at least one direct check confirms it.
@@ -148,7 +150,7 @@ CONFIRM = {
     "failed_compressor_capacitor": "listen_compressor",
     "faulty_room_thermistor": "compare_thermometer",
 }
-SURVEY = ["read_job_card", "listen_outdoor", "thermal_outdoor", "read_sensors", "thermal_indoor"]
+SURVEY = ["read_job_card", "read_alarm_log", "listen_outdoor", "thermal_outdoor", "read_sensors", "thermal_indoor"]
 
 
 def _rule_coach(job: game.Job, pm: dict | None, question: str | None) -> dict:

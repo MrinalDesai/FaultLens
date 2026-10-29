@@ -338,6 +338,13 @@ td.nomatch { color: var(--high); }
 .known { border-left: 4px solid var(--rule); padding: 6px 12px; background: var(--ground); border-radius: var(--radius-s); }
 .known.yes { border-color: var(--ok); } .known.no { border-color: var(--high); }
 .checkbtn { margin-top: 6px; width: auto; font-size: .85rem; padding: 4px 10px; }
+
+/* phones: wide tables scroll inside their panel, form controls never push the page wider */
+@media (max-width: 700px) { table { display: block; overflow-x: auto; max-width: 100%; } }
+select, input, textarea { max-width: 100%; }
+#playStart, #playStart * { min-width: 0; }
+section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
+.evalgrid { grid-template-columns: minmax(0, 1fr); }
 </style>
 </head>
 <body>
@@ -460,7 +467,7 @@ td.nomatch { color: var(--high); }
           <input type="file" id="media" multiple hidden
                  accept=".wav,.csv,.png,.jpg,.jpeg,.webp,.mp4,.mov,audio/wav,image/*,video/*">
           <span>Choose or drop files</span>
-          <span class="hint">Sound (.wav), thermal images (.png), sensor log (.csv), photos or video</span>
+          <span class="hint">Sound (.wav), thermal images (.png), sensor log or alarm history (.csv), photos or video</span>
         </label>
         <ul class="received" id="mediaList"></ul>
       </div>
@@ -613,6 +620,15 @@ function renderParts(selected = null) {
   }));
 }
 
+function alarmBlock(sm, rows) {
+  if (!sm) return "";
+  const codes = sm.codes.length
+    ? `<div class="scroll"><table class="mini"><thead><tr><th>Code</th><th>Times</th><th>Last</th><th>Meaning</th></tr></thead><tbody>${sm.codes.map(c =>
+        `<tr><td><b>${esc(c.code)}</b></td><td class="num">${c.count}</td><td>${esc(c.last.slice(5))}</td><td>${esc(c.meaning)}</td></tr>`).join("")}</tbody></table></div>`
+    : `<p>No codes in the last 7 days.</p>`;
+  return `${codes}<p class="hint" style="margin-top:6px">${esc(sm.note)}</p>`;
+}
+
 function sampleLabel(s, cond) {
   const n = "Sample " + parseInt(s.id.split("_").pop(), 10);
   if (cond === "normal" || s.severity == null) return n;
@@ -672,6 +688,8 @@ async function renderDetail() {
     </div>
     <div class="panel" id="sampleBody"><p class="hint">Loading sample…</p></div>
     ${whereItIs(c)}
+    ${c.sources?.length ? `<div class="panel"><h3 style="margin-bottom:8px">Public documentation</h3><ul style="margin:0;padding-left:18px">${c.sources.map(x =>
+      `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><br><span class="hint">${esc(x.supports)}</span></li>`).join("")}</ul></div>` : ""}
     <div class="panel"><h3 style="margin-bottom:10px">Photos of this fault</h3>${photos}</div>`;
   $("#detail").querySelectorAll(".samples button").forEach(b => b.addEventListener("click", () => { state.sample = b.dataset.s; renderDetail(); }));
   if (!s) { $("#sampleBody").innerHTML = `<p class="hint">No samples for this condition.</p>`; return; }
@@ -695,6 +713,7 @@ async function renderDetail() {
           <p class="hint">Coil on the left; compressor (round) and capacitor (small block) on the right.</p></div>
       </div>
       <div><div class="sighead"><h3>Sensor log</h3>${src("sensors")}</div>${sensorTable(body.sensor_summary, true)}</div>
+      <div><div class="sighead"><h3>Alarm history (the unit's fault log)</h3>${src("alarms")}</div>${alarmBlock(body.alarm_summary)}</div>
       ${patternBlock(body.pattern_match, body.pattern_note, "What the pattern model sees in this sample")}
       <p class="hint">${esc(body.info.note || "")}</p>
       <div class="actions">
@@ -704,6 +723,7 @@ async function renderDetail() {
           <a href="${esc(s.files.thermal_indoor)}" download>thermal_indoor.png</a>
           <a href="${esc(s.files.thermal_outdoor)}" download>thermal_outdoor.png</a>
           <a href="${esc(s.files.sensors)}" download>sensors.csv</a>
+          ${s.files.alarms ? `<a href="${esc(s.files.alarms)}" download>alarms.csv</a>` : ""}
         </div>
       </div>
       <p class="hint">Download these, change nothing or swap in your own recording, and upload them under Investigate. That is the same path a technician uses in the field.</p>
@@ -914,6 +934,7 @@ function render() {
     ${signalViews ? `<div class="panel">${signalViews}</div>` : ""}
     ${photos ? `<div class="panel"><h3 style="margin-bottom:10px">Photos</h3>${photos}</div>` : ""}
     ${res.sensor_summary ? `<div class="panel">${sensorTable(res.sensor_summary)}</div>` : ""}
+    ${res.alarm_summary ? `<div class="panel"><h3 style="margin-bottom:8px">Alarm history</h3>${alarmBlock(res.alarm_summary)}</div>` : ""}
     ${received}
     <details class="panel"><summary>Agent steps (${res.seconds}s, ${res.usage.input_tokens.toLocaleString()} tokens in, ${res.usage.output_tokens.toLocaleString()} out)</summary>
       <pre class="trace">${esc(JSON.stringify(res.trace, null, 1))}</pre></details>
@@ -1019,19 +1040,22 @@ $("#runEval").addEventListener("click", async () => {
   btn.disabled = false; btn.textContent = "Run the test set";
 });
 function renderEval({ report, results }) {
-  const names = { rules: "Sensor rules only (baseline)", agent_sensors: "FaultLens, sensors only", agent_full: "FaultLens, sensors + note + check" };
+  const names = { rules: "Sensor rules only (baseline)", agent_sensors: "FaultLens, sensors only", agent_full: "FaultLens, sensors + note + alarm history + check" };
   const rows = Object.entries(report.by_mode).map(([m, r]) => `<tr>
     <td>${esc(names[m] || m)}</td>
     <td class="num score">${pct(r.all.top1_accuracy)}</td>
     <td class="num">${pct(r.easy.top1_accuracy)}</td><td class="num">${pct(r.hard.top1_accuracy)}</td>
-    <td class="num">${pct(r.all.asked_for_more_evidence)}</td><td class="num">${pct(r.all.accuracy_when_confident)}</td></tr>`).join("");
+    <td class="num">${pct(r.all.asked_for_more_evidence)}</td><td class="num">${pct(r.all.accuracy_when_confident)}</td>
+    <td class="num">${r.all.evidence ? pct(r.all.evidence.evidence_grounded) : "–"}</td></tr>`).join("");
   const detail = results.map(r => `<tr><td>${esc(r.case)}</td><td>${esc(names[r.mode] || r.mode)}</td>
-    <td>${esc(title(r.predicted))}</td><td>${r.correct ? "Correct" : "Wrong"}</td><td>${r.status === "confident" ? "Confident" : "Asked for more"}</td></tr>`).join("");
+    <td>${esc(title(r.predicted))}</td><td>${r.correct ? "Correct" : "Wrong"}</td><td>${r.status === "confident" ? "Confident" : "Asked for more"}</td>
+    <td>${r.citations ? (r.citations.problems.length ? r.citations.problems.map(p => `<span class="wrong">${esc(p.evidence)}: ${esc(p.problems.join(", "))}</span>`).join("<br>") : `${r.citations.items} of ${r.citations.items} grounded`) : ""}</td></tr>`).join("");
   $("#evalOut").innerHTML = `
     ${report.mock ? '<p class="error">Offline mode: FaultLens rows repeat the rule baseline. Run with live models for real numbers.</p>' : ""}
-    <table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="scroll"><table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th><th>Evidence correctly cited</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin-top:6px"><b>Evidence correctly cited:</b> share of the evidence FaultLens gave that refers only to what it was given: every number it quotes is in the readings, it never quotes a held-back sensor or a picture it was not shown, and every alarm code it names is in the log. Checked automatically, item by item.</p>
     <details style="margin-top:12px"><summary>Every case</summary>
-      <table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th></tr></thead><tbody>${detail}</tbody></table></details>`;
+      <div class="scroll"><table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th><th>Evidence check</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
 }
 
 /* ---------- play a job ---------- */
@@ -1107,6 +1131,7 @@ async function doAction(id) {
     if (v.sound_url) media += `<audio controls src="${v.sound_url}"></audio><img src="${v.spectrogram}" alt="Spectrogram of the outdoor unit">`;
     if (v.thermal) media += `<img src="${v.thermal}" alt="Thermal image">`;
     if (v.sensor_summary) media += sensorTable(v.sensor_summary, true);
+    if (f.alarms) media += `<div class="panel" style="margin-top:8px">${alarmBlock(f.alarms.summary)}</div>`;
     if (f.card) media += `<div class="cardview"><img src="${esc(f.card.image)}" alt="Previous job card">
       ${f.card.fields ? `<div><p class="hint">Read by ${esc(f.card.model)}, ${f.card.seconds}s</p><pre class="json">${esc(JSON.stringify(f.card.fields, null, 2))}</pre></div>` : ""}</div>`;
     if (f.photos) media += `<div class="logphotos">${f.photos.map(p => photoFigure(p) .replace("</figure>",
@@ -1216,6 +1241,7 @@ function openConclude() {
         <ul class="hint">${s.breakdown.map(([t, v]) => `<li>${esc(t)}: ${v > 0 ? "+" : ""}${v}</li>`).join("") || "<li>Clean job</li>"}</ul>
         <p class="hint">${s.checks_used} checks in ${Math.floor(s.seconds / 60)} min ${s.seconds % 60} s.</p></div>
       <p><b>Fix:</b> ${esc(s.fix)}</p>
+      ${s.sources?.length ? `<p class="hint">Public guidance: ${s.sources.map(x => `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`).join("; ")}</p>` : ""}
       <div class="row"><button type="button" class="btn primary" id="againBtn" style="width:auto">Next job</button></div>
     </div>`;
     $("#againBtn").addEventListener("click", () => { $("#playJob").hidden = true; $("#playStart").hidden = false; });

@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image
 
-from . import config, features, knowledge, render, sensors
+from . import alarms, config, features, knowledge, render, sensors
 from .meta_client import client, image_part, text_part
 
 SYSTEM_PROMPT = """You are FaultLens, a diagnostic assistant for technicians repairing {equipment}.
@@ -39,6 +39,8 @@ Rules:
   disagree, explain the likely reason and ask for the observation that settles it.
 - You can see the thermal images and the sound spectrogram yourself. Check that what you see is
   consistent with the pattern match, and mention it when it is not.
+- The alarm history is the unit's own protection record: a code says what the unit protected itself
+  from (too hot outside, coil freezing), not which part failed, and an empty log does not rule a fault out.
 - If everything points to a healthy unit, rank "normal" first.
 - Finish by calling submit_assessment exactly once.
 """
@@ -54,6 +56,8 @@ class Evidence:
     thermal_indoor: np.ndarray | None = None                         # temperatures in C
     thermal_outdoor: np.ndarray | None = None
     pattern_match: dict | None = None
+    alarms: list[dict] = field(default_factory=list)                 # the unit's fault log
+    alarms_given: bool = False                                       # True when a log was read, even if empty
 
     def signal_features(self) -> dict[str, dict]:
         out = {}
@@ -161,6 +165,8 @@ def _opening_message(ev: Evidence) -> dict:
     parts = [text_part("New investigation. Evidence follows.")]
     summary = ev.sensor_summary()
     parts.append(text_part("Sensor summary:\n" + (json.dumps(summary, indent=1) if summary else "none provided")))
+    if ev.alarms_given:
+        parts.append(text_part("Alarm history (the unit's own fault log, last 7 days):\n" + json.dumps(alarms.summarize(ev.alarms), indent=1)))
     parts.append(text_part("Technician notes:\n" + ("\n".join(f"- {n}" for n in ev.notes) or "none")))
     pm = ev.pattern_summary()
     if pm:

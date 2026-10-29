@@ -24,7 +24,7 @@ from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import cardreader, coach, parts, partcheck, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import alarms, cardreader, coach, parts, partcheck, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
 from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
@@ -64,6 +64,9 @@ def _load_sample_into(ev: Evidence, cond: str, sample: str) -> None:
     ev.thermal_indoor = render.read_thermal_png((d / "thermal_indoor.png").read_bytes())
     ev.thermal_outdoor = render.read_thermal_png((d / "thermal_outdoor.png").read_bytes())
     ev.sensor_rows = sensors.from_csv((d / "sensors.csv").read_text())
+    library.ensure_alarms(d)
+    ev.alarms = alarms.from_csv((d / "alarms.csv").read_text())
+    ev.alarms_given = True
 
 
 def _route_upload(ev: Evidence, name: str, ctype: str, data: bytes, log: list) -> None:
@@ -72,6 +75,10 @@ def _route_upload(ev: Evidence, name: str, ctype: str, data: bytes, log: list) -
     if lower.endswith(".wav") or ctype in ("audio/wav", "audio/x-wav", "audio/wave"):
         ev.sound = render.read_wav(data)
         log.append({"file": name, "as": "Sound (outdoor unit)"})
+    elif lower.endswith(".csv") and alarms.is_alarm_csv(data.decode(errors="replace")):
+        ev.alarms = alarms.from_csv(data.decode(errors="replace"))
+        ev.alarms_given = True
+        log.append({"file": name, "as": f"Alarm history ({len(ev.alarms)} entries)"})
     elif lower.endswith(".csv"):
         ev.sensor_rows = sensors.from_csv(data.decode(errors="replace"))
         log.append({"file": name, "as": "Sensor log"})
@@ -135,7 +142,8 @@ def library_sample(cond: str, sample: str):
     note = match_patterns(ev)
     info = json.loads((library.sample_dir(cond, sample) / "info.json").read_text())
     return {"info": info, "views": _signal_views(ev), "sensor_summary": ev.sensor_summary(),
-            "pattern_match": ev.pattern_match, "pattern_note": note}
+            "pattern_match": ev.pattern_match, "pattern_note": note,
+            "alarms": ev.alarms, "alarm_summary": alarms.summarize(ev.alarms)}
 
 
 @app.get("/api/pattern-report")
@@ -184,7 +192,7 @@ async def investigate(
             _load_sample_into(ev, cond, sample)
         except FileNotFoundError:
             raise HTTPException(404, f"No library sample {library_sample}.")
-        received.append({"file": library_sample, "as": "Library sample: sound, both thermal images, sensor log"})
+        received.append({"file": library_sample, "as": "Library sample: sound, both thermal images, sensor log, alarm history"})
     if sensor_csv.strip():
         ev.sensor_rows = sensors.from_csv(sensor_csv)
         received.append({"file": "pasted text", "as": "Sensor log"})
@@ -197,7 +205,7 @@ async def investigate(
                 raise HTTPException(400, f"{f.filename}: {e}")
 
     has_signal = ev.sound is not None or ev.thermal_indoor is not None or ev.thermal_outdoor is not None
-    if not (ev.sensor_rows or ev.notes or ev.frames or has_signal):
+    if not (ev.sensor_rows or ev.notes or ev.frames or has_signal or ev.alarms_given):
         raise HTTPException(400, "Add at least one piece of evidence: sound, a thermal image, a sensor log, "
                                  "a photo or a note.")
 
@@ -224,7 +232,8 @@ async def investigate(
         h["title"] = titles.get(h["fault_id"], h["fault_id"])
 
     return {**result, "photos": photos, "views": _signal_views(ev), "received": received,
-            "sensor_summary": ev.sensor_summary(), "notes_used": ev.notes, "titles": titles}
+            "sensor_summary": ev.sensor_summary(), "notes_used": ev.notes, "titles": titles,
+            "alarm_summary": alarms.summarize(ev.alarms) if ev.alarms_given else None}
 
 
 # ------------------------------------------------------------------ job cards
@@ -426,6 +435,8 @@ def game_conclude(job_id: str, body: Conclude):
         ev.thermal_indoor = job.signals.get("thermal_indoor")
         ev.thermal_outdoor = job.signals.get("thermal_outdoor")
         ev.sensor_rows = job.signals.get("sensors", [])
+        if "alarms" in job.signals:
+            ev.alarms, ev.alarms_given = job.signals["alarms"], True
         ev.pattern_match = coach.pattern_for(job)
         assessment = {"status": "confident" if adv.get("ready_to_conclude") else "need_more_evidence",
                       "hypotheses": adv["hypotheses"], "summary": adv.get("message", "")}
@@ -438,6 +449,7 @@ def game_conclude(job_id: str, body: Conclude):
     result.update(player_title=titles.get(body.choice, body.choice),
                   coach_title=titles.get(coach_choice, coach_choice) if coach_choice else None,
                   checker=verdict, fix=knowledge.fault_guide(job.condition)["fix"],
+                  sources=knowledge.sources_for(job.condition),
                   faulty_parts=[{"no": n, "name": parts.PARTS[n][0]} for n in parts.parts_for(job.condition, job.variant)],
                   outlined_by=parts.boxes()[1],
                   steps=job.steps)

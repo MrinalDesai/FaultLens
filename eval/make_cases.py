@@ -15,7 +15,7 @@ import json
 import random
 from pathlib import Path
 
-from faultlens import knowledge, sensors
+from faultlens import alarms, knowledge, sensors
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "cases"
 
@@ -79,7 +79,8 @@ def main(per_fault: int = 4, seed: int = 42) -> None:
         for k in range(per_fault):
             hard = k % 2 == 1
             severity = rng.uniform(0.35, 0.6) if hard else rng.uniform(0.8, 1.0)
-            rows = sensors.generate(fault, seed=rng.randint(0, 10**6), severity=severity)
+            unit_seed = rng.randint(0, 10**6)
+            rows = sensors.generate(fault, seed=unit_seed, severity=severity)
             hidden = HIDE.get(fault) if hard else None
             if hidden:
                 for r in rows:
@@ -91,6 +92,7 @@ def main(per_fault: int = 4, seed: int = 42) -> None:
                 "severity": round(severity, 2),
                 "hidden_channel": hidden,
                 "sensor_csv": sensors.to_csv(rows),
+                "alarm_csv": alarms.to_csv(alarms.generate(fault, seed=unit_seed, severity=severity)),
                 "notes": [rng.choice(FIELD_NOTES[fault])],
             }
             (OUT / f"{case['id']}.json").write_text(json.dumps(case, indent=1))

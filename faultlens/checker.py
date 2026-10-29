@@ -14,7 +14,7 @@ import re
 
 from openai import OpenAI
 
-from . import config, render
+from . import alarms, config, render
 from .agent import Evidence
 from .meta_client import image_to_data_url
 
@@ -83,6 +83,7 @@ def _evidence_text(ev: Evidence, assessment: dict) -> str:
     return json.dumps({
         "sensor_summary": ev.sensor_summary(),
         "technician_notes": ev.notes,
+        "alarm_history": alarms.summarize(ev.alarms) if ev.alarms_given else "not provided",
         "parts_detected": ev.parts_summary(),
         "pattern_match": ev.pattern_summary(),
         "images_provided": {"photos": len(ev.frames), "thermal_indoor": ev.thermal_indoor is not None,

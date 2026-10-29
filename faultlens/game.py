@@ -22,7 +22,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import knowledge, library, render, sensors, simulate
+from . import alarms, knowledge, library, render, sensors, simulate
 
 POWER_ON, POWER_OFF, ANY = "on", "off", "any"
 
@@ -30,6 +30,7 @@ POWER_ON, POWER_OFF, ANY = "on", "off", "any"
 # group, title, what the technician physically does, power needed, certified-only
 ACTIONS = {
     "read_job_card":       ("History", "Read the last job card", "Photograph the previous visit's handwritten job card from the customer's file.", ANY, False),
+    "read_alarm_log":      ("History", "Read the unit's fault history", "Press the diagnostic button on the remote and read the last 7 days of error codes from the display.", ANY, False),
     "listen_outdoor":      ("Listen", "Listen to the outdoor unit", "Stand 1 m from the outdoor unit and record 10 seconds of sound.", POWER_ON, False),
     "watch_outdoor_fan":   ("Listen", "Watch the outdoor fan", "Watch the outdoor fan blade through the grille for 30 seconds.", POWER_ON, False),
     "listen_compressor":   ("Listen", "Listen at compressor start", "Restart the unit from the remote and listen at the outdoor unit as the compressor starts.", POWER_ON, False),
@@ -300,6 +301,11 @@ def perform(job: Job, action_id: str) -> dict:
     elif sig == "sensors":
         job.signals["sensors"] = job.sensor_rows
         found["finding"] = "30 minutes of readings logged."
+    elif action_id == "read_alarm_log":
+        rows = alarms.generate(job.condition, seed=job.seed, severity=job.severity, variant=job.variant)
+        job.signals["alarms"] = rows
+        found["finding"] = alarms.describe(rows)
+        found["alarms"] = {"rows": rows[-12:], "summary": alarms.summarize(rows), "total": len(rows)}
     elif action_id == "read_job_card":
         from . import cardreader, jobcards
         cards = [c for c in jobcards.listing() if c["condition"] == job.condition]

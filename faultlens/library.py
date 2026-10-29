@@ -7,6 +7,7 @@ library/
       thermal_indoor.png    radiometric thermal, indoor coil          (simulated)
       thermal_outdoor.png   radiometric thermal, outdoor unit         (simulated)
       sensors.csv           30 minutes of readings, one row a minute  (simulated)
+      alarms.csv            the unit's fault log, last 7 days        (simulated)
       info.json             condition, severity, source of every file
     photos/                 photos of this fault (drop your own here)
       photos.json           source of each photo: real-photo, chatgpt or muse-image
@@ -20,7 +21,7 @@ import argparse
 import json
 from pathlib import Path
 
-from . import knowledge, render, sensors, simulate
+from . import alarms, knowledge, render, sensors, simulate
 
 ROOT = Path(__file__).resolve().parent.parent
 LIBRARY = ROOT / "library"
@@ -29,6 +30,7 @@ SIGNAL_FILES = {
     "thermal_indoor": "thermal_indoor.png",
     "thermal_outdoor": "thermal_outdoor.png",
     "sensors": "sensors.csv",
+    "alarms": "alarms.csv",
 }
 PHOTO_SOURCES = ("real-photo", "chatgpt", "muse-image")
 
@@ -47,6 +49,7 @@ def build(per_condition: int = 3) -> None:
             (d / "thermal_outdoor.png").write_bytes(
                 render.write_thermal_png(simulate.thermal_outdoor(cond, seed=seed, severity=sev)))
             (d / "sensors.csv").write_text(sensors.to_csv(sensors.generate(cond, seed=seed, severity=sev)))
+            (d / "alarms.csv").write_text(alarms.to_csv(alarms.generate(cond, seed=seed, severity=sev)))
             (d / "info.json").write_text(json.dumps({
                 "condition": cond,
                 "severity": sev,
@@ -82,6 +85,15 @@ def _photo_list(cond: str) -> list[dict]:
     return out
 
 
+def ensure_alarms(d: Path) -> None:
+    """Libraries built before alarm history existed: add the fault log from the sample's seed."""
+    f = d / "alarms.csv"
+    if f.exists() or not (d / "info.json").exists():
+        return
+    info = json.loads((d / "info.json").read_text())
+    f.write_text(alarms.to_csv(alarms.generate(info["condition"], seed=info["seed"], severity=info["severity"])))
+
+
 def listing() -> list[dict]:
     """Everything the Explore view needs, without reading the signal files."""
     titles = {f["fault_id"]: f for f in knowledge.fault_menu()}
@@ -91,16 +103,18 @@ def listing() -> list[dict]:
         samples = []
         if folder.exists():
             for d in sorted(p for p in folder.iterdir() if p.is_dir() and p.name != "photos"):
+                ensure_alarms(d)
                 info = json.loads((d / "info.json").read_text()) if (d / "info.json").exists() else {}
                 samples.append({
                     "id": d.name,
                     "severity": info.get("severity"),
-                    "sources": info.get("sources", {}),
+                    "sources": {**info.get("sources", {}), "alarms": "simulated"},
                     "files": {k: f"/library/{cond}/{d.name}/{v}" for k, v in SIGNAL_FILES.items()
                               if (d / v).exists()},
                 })
         meta = titles.get(cond, {})
         out.append({"condition": cond, "title": meta.get("title", cond), "summary": meta.get("summary", ""),
+                    "sources": meta.get("sources", []),
                     "samples": samples, "photos": _photo_list(cond)})
     return out
 
