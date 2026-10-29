@@ -21,7 +21,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from . import config, knowledge, library, parts
+from . import config, knowledge, library, parts, wear
 from .meta_client import client, image_to_data_url, text_part
 
 FIX = {"replace": "Replace the part", "clean": "Clean it, no replacement needed",
@@ -37,10 +37,29 @@ part may be damaged in a way none of the references shows, or may be healthy.
 Say plainly, in words a technician uses on site, what you see. Do not guess beyond the photo.
 Some damage is the cause of a fault (a burnt motor, a swollen capacitor); some is only a symptom of a
 fault elsewhere (frost on the indoor coil is caused by a blocked filter or low refrigerant): say which.
+When WEAR STAGE references are given, early wear (the first stages) is normal ageing, not a fault: use
+role "not_related" and action "no_action" or "check_further"; only the last stages cause a fault.
 Call the assess_part tool exactly once."""
 
 
 # ----------------------------------------------------------------------------- references
+
+def _excluded(path: Path | None) -> set[Path]:
+    """The photo being checked plus any copy of it elsewhere in the library (wear stages reuse
+    some part and fault photos), so none of them is shown back to the model as a reference."""
+    if path is None:
+        return set()
+    p = path.resolve()
+    out = {p}
+    for sc in wear.load()["parts"].values():
+        for st in sc["stages"]:
+            pair = {(library.LIBRARY / st["image"]).resolve()}
+            if st.get("same_as"):
+                pair.add((library.LIBRARY / st["same_as"]).resolve())
+            if p in pair:
+                out |= pair
+    return out
+
 
 def _fault_titles() -> dict:
     return {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
@@ -60,7 +79,7 @@ def damaged_references(part_no: int, exclude: Path | None = None) -> list[dict]:
             path = meta_path.parent / name
             if not isinstance(e, dict) or e.get("part") != part_no or not path.exists():
                 continue
-            if exclude is not None and path.resolve() == exclude.resolve():
+            if path.resolve() in _excluded(exclude):
                 continue
             if cond == "normal":
                 continue
@@ -72,7 +91,7 @@ def damaged_references(part_no: int, exclude: Path | None = None) -> list[dict]:
 def healthy_reference(part_no: int, exclude: Path | None = None) -> Path | None:
     img = parts.PARTS[part_no][2]
     p = parts.PART_DIR / img if img else None
-    if p is None or not p.exists() or (exclude is not None and p.resolve() == exclude.resolve()):
+    if p is None or not p.exists() or p.resolve() in _excluded(exclude):
         return None
     return p
 
@@ -103,6 +122,13 @@ def known_answer(path: Path | None) -> dict | None:
     if path is None:
         return None
     path = path.resolve()
+    ks = wear.known_stage(path)
+    if ks and (library.LIBRARY / "wear").resolve() in path.parents:
+        n, st = ks
+        sc = wear.scale(n)
+        label = sc["stages"][st - 1]["label"]
+        return {"part_no": n, "condition": "healthy" if st == 1 else "damaged", "caption": f"{sc['name']}, wear stage {st}: {label}",
+                "fault": None, "role": "healthy" if st == 1 else "cause", "stage": st}
     if path.parent.resolve() == parts.PART_DIR.resolve():
         for n, p in parts.PARTS.items():
             if p[2] == path.name:
@@ -136,7 +162,9 @@ def _tool() -> dict:
                            "description": "The faults this finding points to, most likely first."},
                 "matches_complaint": {"type": "string", "enum": ["yes", "no", "no complaint given"]},
                 "next_check": {"type": "string", "description": "One check that would confirm it, in plain words."},
-                "confidence": {"type": "number", "description": "0 to 1."}},
+                "confidence": {"type": "number", "description": "0 to 1."},
+                "wear_stage": {"type": "integer", "description": "If WEAR STAGE references were given: the stage number the "
+                               "technician's photo matches best. 0 if no wear scale was given."}},
                 "required": ["part_no", "condition", "what_i_see", "action", "role", "faults", "confidence"]}}
 
 
@@ -172,12 +200,26 @@ def _content(photo: Image.Image, part_no: int | None, complaint: str, exclude: P
     else:
         content.append(text_part(f"The technician says this is part #{part_no}: {parts.PARTS[part_no][0]}."))
         candidates = [part_no]
-        h = healthy_reference(part_no, exclude)
+        sts = wear.stages(part_no, exclude)
+        h = None if sts else healthy_reference(part_no, exclude)
+        if sts:
+            content.append(text_part(f"WEAR STAGE references for this part, stage 1 (new) to stage {len(sts)} (worst). "
+                                     "Say which stage the technician's photo matches best (wear_stage). A stage whose "
+                                     "picture is missing below still exists; place the photo between its neighbours."))
+            for st in sts:
+                if st["is_query"]:
+                    continue
+                content += [text_part(f"WEAR STAGE {st['stage']} of {len(sts)}: {st['label']}"),
+                            {"type": "input_image", "image_url": image_to_data_url(Image.open(st["path"]), 512)}]
+                sent.append(f"wear stage {st['stage']} ({st['label'].lower()})")
         if h:
             content += [text_part(f"REFERENCE, healthy #{part_no} {parts.PARTS[part_no][0]}:"),
                         {"type": "input_image", "image_url": image_to_data_url(Image.open(h), 640)}]
             sent.append(f"healthy {parts.PARTS[part_no][0].lower()}")
     refs = [r for n in candidates for r in damaged_references(n, exclude)]
+    if part_no is not None and wear.has_scale(part_no):   # already shown as a wear stage
+        in_scale = {(library.LIBRARY / st["same_as"]).resolve() for st in wear.scale(part_no)["stages"] if st.get("same_as")}
+        refs = [r for r in refs if r["path"].resolve() not in in_scale]
     if part_no is None:
         refs = refs[:8]
     for r in refs:
@@ -214,18 +256,34 @@ def _mock(known: dict | None) -> dict:
                 "closest_reference": "none", "action": "check_further", "role": "not_related", "faults": [],
                 "matches_complaint": "no complaint given", "next_check": "Run with the Meta API key set.", "confidence": 0.0}
     damaged = known["condition"] == "damaged"
+    st = known.get("stage")
+    if st:   # wear photos: follow the wear scale, early stages are not faults
+        sc = wear.scale(known["part_no"])
+        act = sc["stages"][st - 1]["action"]
+        last = st >= len(sc["stages"])
+        return {"part_no": known["part_no"], "condition": "healthy" if st == 1 else "damaged",
+                "what_i_see": f"(offline mode: the known answer) {known['caption']}.",
+                "closest_reference": f"wear stage {st}",
+                "action": {"none": "no_action", "plan": "no_action", "soon": "check_further", "now": "replace"}[act]
+                          if known["part_no"] not in (2, 10) or act != "now" else "clean",
+                "role": "cause" if last else "not_related", "faults": [known["fault"]] if known.get("fault") and last else [],
+                "matches_complaint": "no complaint given", "next_check": "", "confidence": 1.0, "wear_stage": st}
     return {"part_no": known["part_no"], "condition": known["condition"],
             "what_i_see": f"(offline mode: the known answer) {known['caption']}.",
             "closest_reference": known["caption"] if damaged else "healthy part",
             "action": "replace" if damaged and known["role"] == "cause" else ("check_further" if damaged else "no_action"),
             "role": known["role"], "faults": [known["fault"]] if known.get("fault") else [],
-            "matches_complaint": "no complaint given", "next_check": "", "confidence": 1.0}
+            "matches_complaint": "no complaint given", "next_check": "", "confidence": 1.0,
+            "wear_stage": known.get("stage") or 0}
 
 
 def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
           library_path: Path | None = None, outline: bool = True) -> dict:
     t0 = time.time()
     known = known_answer(library_path)
+    ks = wear.known_stage(library_path) if library_path else None
+    if known and ks and ks[0] == known["part_no"]:
+        known["stage"] = ks[1]
     usage = {}
     if config.MOCK:
         result, sent, model = _mock(known), ["(offline mode)"], "offline mode"
@@ -261,9 +319,18 @@ def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
            "fault_titles": [titles.get(f, f) for f in result.get("faults", [])],
            "references_sent": sent, "model": model, "usage": usage, "known": known,
            "identified_by": "offline mode" if config.MOCK else identified_by}
+    out["wear"] = wear.result(n, result.get("wear_stage"), library_path) if wear.has_scale(n) else None
+    if out["wear"] and known and known.get("stage"):
+        out["wear"]["known_stage"] = known["stage"]
     if known:
         out["known"]["fault_title"] = titles.get(known["fault"], "") if known.get("fault") else ""
-        out["agrees_with_known"] = (known["part_no"] == n and known["condition"] == result.get("condition"))
+        if known.get("stage") and out["wear"]:
+            # Wear photos: right part and within one stage of the true one.
+            out["agrees_with_known"] = known["part_no"] == n and abs(out["wear"]["stage"] - known["stage"]) <= 1
+            out["agreement_rule"] = "right part, within one wear stage"
+        else:
+            out["agrees_with_known"] = (known["part_no"] == n and known["condition"] == result.get("condition"))
+            out["agreement_rule"] = "right part, right condition"
     if outline and not config.MOCK:
         img, note = _outline(photo, n)
         out["outlined"], out["outline_note"] = img, note

@@ -24,7 +24,7 @@ from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import alarms, cardreader, coach, parts, partcheck, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import alarms, cardreader, coach, parts, partcheck, wear, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
 from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
@@ -247,7 +247,8 @@ def part_list():
         it["fault_titles"] = [titles.get(c, c) for c in it["faults"]]
     return {"parts": items, "outlined_by": outlined_by,
             "by_fault": {c: parts.parts_for(c) for c in parts.FAULT_PARTS},
-            "diagram": "/library/diagram/split_ac_exploded.png"}
+            "diagram": "/library/diagram/split_ac_exploded.png",
+            "wear_examples": wear.library_examples(), "wear_parts": list(wear.load()["parts"])}
 
 
 @app.get("/api/diagram.jpg")

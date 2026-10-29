@@ -345,6 +345,17 @@ select, input, textarea { max-width: 100%; }
 #playStart, #playStart * { min-width: 0; }
 section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
 .evalgrid { grid-template-columns: minmax(0, 1fr); }
+
+/* ---------- wear stages ---------- */
+.wear { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 12px; background: var(--surface); display: grid; gap: 10px; }
+.wearstrip { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 6px; }
+.wearstrip figure { margin: 0; text-align: center; opacity: .55; }
+.wearstrip figure.here { opacity: 1; }
+.wearstrip figure.here img { outline: 3px solid var(--high); outline-offset: 1px; }
+.wearstrip img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.wearstrip figcaption { font-size: .75rem; line-height: 1.2; margin-top: 4px; }
+.wearstrip .missing { aspect-ratio: 1; display: grid; place-items: center; border: 1px dashed var(--rule); border-radius: var(--radius-s); font-size: .7rem; color: var(--ink-soft); padding: 4px; }
+.lifebig { font-size: 1.15rem; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -436,7 +447,7 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
       <div class="pcpick" id="pcPick"></div>
     </div>
     <div class="panel" id="pcPanel">
-      <div class="empty"><h2>Check a part</h2><p>Photograph a part. FaultLens compares it with the healthy part and with known damage, then says whether to replace it and which fault it causes.</p></div>
+      <div class="empty"><h2>Check a part</h2><p>Photograph a part. FaultLens compares it with the healthy part and with known damage, then says whether to replace it and which fault it causes. For filters, the outdoor coil, the fan hub and copper pipes it also places the photo on a wear scale and says how long the part typically has left.</p></div>
     </div>
   </section>
 
@@ -1252,9 +1263,10 @@ function openConclude() {
 fetch("/api/parts").then(r => r.json()).then(P => {
   $("#pcPart").insertAdjacentHTML("beforeend", P.parts.filter(p => p.image).map(p => `<option value="${p.no}">#${p.no} ${esc(p.name)}</option>`).join(""));
 });
-fetch("/api/library").then(r => r.json()).then(b => {
+fetch("/api/library").then(r => r.json()).then(async b => {
   const lib = (b.conditions || b.library || b);
   const picks = [];
+  try { const P = await fetch("/api/parts").then(r => r.json()); (P.wear_examples || []).forEach(x => picks.push(x)); } catch (e) {}
   (Array.isArray(lib) ? lib : []).forEach(c => (c.photos || []).forEach(p => { if (c.condition !== "normal" && p.part) picks.push(p); }));
   $("#pcPick").innerHTML = picks.map(p => `<button type="button" data-u="${esc(p.url)}" title="${esc(p.caption)}"><img src="${esc(p.url)}" alt="${esc(p.caption)}" loading="lazy"></button>`).join("");
   $("#pcPick").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
@@ -1283,11 +1295,22 @@ async function runPartCheck({ file = null, library_url = "", job_id = "" }, targ
   } catch (e) { target.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
 }
 
+function wearHtml(w) {
+  return `<div class="wear"><h3 style="margin:0">How long has it got?</h3>
+    <div class="wearstrip" style="--n:${w.strip.length}">${w.strip.map(x => `<figure class="${x.stage === w.stage ? "here" : ""}">
+      ${x.is_query ? `<div class="missing">This photo's own stage, left out</div>` : `<img src="${esc(x.url)}" alt="Stage ${x.stage}: ${esc(x.label)}">`}
+      <figcaption>${x.stage}. ${esc(x.label)}</figcaption></figure>`).join("")}</div>
+    <p style="margin:0"><span class="lifebig">Stage ${w.stage} of ${w.of}: ${esc(w.label)}.</span> ${esc(w.life)}.</p>
+    <p style="margin:0"><b>Preventive action:</b> ${esc(w.action_text)}.</p>
+    ${w.known_stage ? `<p class="hint" style="margin:0">Known stage of this photo: ${w.known_stage}.</p>` : ""}
+    <p class="hint" style="margin:0">${esc(w.note)}</p></div>`;
+}
+
 function partCheckHtml(res, compact) {
   const cls = res.condition === "damaged" ? "bad" : res.condition === "healthy" ? "good" : "unclear";
   const k = res.known;
   const known = k ? `<div class="known ${res.agrees_with_known ? "yes" : "no"}"><b>Known answer:</b> #${k.part_no}, ${esc(k.condition)}${k.caption ? `: ${esc(k.caption)}` : ""}${k.fault_title ? ` (${esc(k.fault_title)})` : ""}.
-      <b>${res.agrees_with_known ? "✓ FaultLens agrees" : "✗ FaultLens got this wrong"}</b>
+      <b>${res.agrees_with_known ? "✓ FaultLens agrees" : "✗ FaultLens got this wrong"}</b>${res.agreement_rule ? ` <span class="hint">(${esc(res.agreement_rule)})</span>` : ""}
       <br><span class="hint">This photo was left out of the references, so it could not be matched to itself.</span></div>` : "";
   const imgs = `<div class="pcimgs">
       <figure><img src="${res.outlined || res.photo}" alt="Technician's photo"><figcaption class="hint">${res.outlined ? esc(res.outline_note) : "Your photo" + (res.outline_note ? `. ${esc(res.outline_note)}` : "")}</figcaption></figure>
@@ -1301,6 +1324,7 @@ function partCheckHtml(res, compact) {
     ${res.role_text ? `<p><b>${esc(res.role_text)}.</b>${res.fault_titles.length ? ` Points to: ${esc(res.fault_titles.join("; "))}.` : ""}
       ${res.matches_complaint && res.matches_complaint !== "no complaint given" ? ` Matches the complaint: <b>${esc(res.matches_complaint)}</b>.` : ""}</p>` : ""}
     ${res.next_check ? `<p><b>To confirm:</b> ${esc(res.next_check)}</p>` : ""}
+    ${res.wear ? wearHtml(res.wear) : ""}
     ${known}
     ${imgs}
     <p class="hint">${res.identified_by ? `Part identified by ${esc(res.identified_by)}. ` : ""}${esc(res.model)}, ${res.seconds}s, confidence ${Math.round((res.confidence || 0) * 100)}%.

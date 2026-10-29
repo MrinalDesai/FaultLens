@@ -1,0 +1,49 @@
+# Wear scales for preventive maintenance: reference photos of a part at each stage of gradual wear,
+# with the TYPICAL remaining life at that stage. These life ranges are set by FaultLens from general
+# service practice for a split AC in normal use. They are not measured on any unit: dusty sites,
+# coastal air and heavy use shorten them. Edit them for your conditions.
+#
+# Muse Spark only decides which stage a photo looks like. The life range comes from this table.
+
+parts:
+  2:
+    name: Air filter
+    wear: dust
+    stages:
+      - {stage: 1, image: wear/filter/stage_1.jpg, same_as: parts/p02_air_filter.jpg, label: Clean, life: "4-8 weeks until it needs cleaning", action: none}
+      - {stage: 2, image: wear/filter/stage_2.jpg, label: Light dust, life: "2-4 weeks until it needs cleaning", action: plan}
+      - {stage: 3, image: wear/filter/stage_3.jpg, label: About half covered, life: "Clean it now", action: soon}
+      - {stage: 4, image: wear/filter/stage_4.jpg, label: Mostly covered, life: "Clean it now: airflow is already reduced", action: now}
+      - {stage: 5, image: wear/filter/stage_5.jpg, same_as: clogged_air_filter/photos/photo_01.jpg, label: Fully clogged, life: "Already causing a fault: weak airflow, the indoor coil can freeze", action: now}
+  10:
+    name: Outdoor (condenser) coil
+    wear: dirt
+    stages:
+      - {stage: 1, image: wear/coil/stage_1.jpg, same_as: parts/p10_condenser_coil.jpg, label: Clean, life: "6-12 months until it needs cleaning", action: none}
+      - {stage: 2, image: wear/coil/stage_2.jpg, label: Light dust, life: "3-6 months until it needs cleaning", action: plan}
+      - {stage: 3, image: wear/coil/stage_3.jpg, label: Patches of dirt, life: "1-3 months: clean at the next visit", action: soon}
+      - {stage: 4, image: wear/coil/stage_4.jpg, same_as: dirty_condenser_coil/photos/photo_01.jpg, label: Mostly blocked, life: "Clean it now: cooling drops on hot afternoons", action: now}
+      - {stage: 5, image: wear/coil/stage_5.jpg, label: Packed solid, life: "Already causing a fault: high-pressure trips, high bills", action: now}
+  11:
+    name: Outdoor fan hub and shaft
+    wear: rust
+    stages:
+      - {stage: 1, image: wear/hub/stage_1.jpg, same_as: parts/p11_fan_blade.jpg, label: Clean, life: "Years", action: none}
+      - {stage: 2, image: wear/hub/stage_2.jpg, label: Rust spots, life: "1-2 years: check at each yearly service", action: plan}
+      - {stage: 3, image: wear/hub/stage_3.jpg, label: Surface rust, life: "6-12 months: check the bearing turns freely", action: soon}
+      - {stage: 4, image: wear/hub/stage_4.jpg, same_as: condenser_fan_failure/photos/photo_02.jpg, label: Heavy rust, life: "1-3 months: plan to replace the fan motor or blade", action: soon}
+      - {stage: 5, image: wear/hub/stage_5.jpg, label: Rusted through, life: "Replace now: the bearing is seizing or about to", action: now}
+  17:
+    name: Copper refrigerant pipe
+    wear: corrosion
+    stages:
+      - {stage: 1, image: wear/pipe/stage_1.jpg, same_as: parts/p17_copper_lines.jpg, label: Clean, life: "Years", action: none}
+      - {stage: 2, image: wear/pipe/stage_2.jpg, label: Dull and darkened, life: "1-3 years: keep the insulation sealed", action: plan}
+      - {stage: 3, image: wear/pipe/stage_3.jpg, label: Green patches, life: "6-12 months: re-insulate and check for leaks yearly", action: soon}
+      - {stage: 4, image: wear/pipe/stage_4.jpg, label: Heavy pitting, life: "Replace at the next visit: a leak is likely", action: now}
+
+actions:
+  none: Nothing to do
+  plan: Plan it for the next routine service
+  soon: Schedule it within weeks
+  now: Do it on this visit

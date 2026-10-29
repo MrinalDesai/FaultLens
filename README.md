@@ -69,6 +69,14 @@ SAM 3.1 then outlines the part in the photo. In a job, every part photo has a **
 
 When a library photo is checked, that exact photo is left out of the references, so the model cannot match it to itself, and the known answer is shown beside the result.
 
+## Preventive maintenance: how long has it got?
+
+Some parts wear gradually and visibly: the air filter (dust), the outdoor coil (dirt), the outdoor fan hub (rust) and the copper pipes (corrosion). For these, the library holds reference photos of each stage of wear, clean to worst (`library/wear/`). Check a part shows Muse Spark those stages, it says which stage the technician's photo matches, and FaultLens gives that stage's typical remaining life and the preventive action: nothing yet, plan it for the next service, schedule it within weeks, or do it on this visit.
+
+The remaining life comes from a table (`faultlens/knowledge/split_ac_wear.yaml`), not from the model, and the app says so: it is a typical range for a split AC in normal use, not a measurement of that unit. Early stages count as normal ageing, not a fault. Capacitors and motor windings fail suddenly, so they have no wear scale.
+
+When a stage photo from the library is checked, that stage's picture (and any copy of it) is left out, so FaultLens has to place it between its neighbours; it counts as right when it lands within one stage.
+
 ## Job cards: reading handwriting
 
 Service technicians still write job cards by hand. The **Job cards** view holds 14 handwritten cards from earlier visits, two per condition, as PDF and image. Pick one, or upload your own PDF or photo, and FaultLens:
@@ -178,6 +186,7 @@ faultlens/
   pipeline.py              One full round: parts, patterns, agent, safety, checker
   partcheck.py             Check a part from a photo against healthy and damaged references
   alarms.py                The unit's fault log (demo error codes), simulated per fault
+  wear.py                  Wear stages and typical remaining life for preventive maintenance
   parts.py                 Exploded view, parts list, outlines (SAM 3.1 or by hand)
   jobcards.py              Generates the handwritten job cards (PDF, image, true contents)
   cardreader.py            Reads a job card into fields (Muse Spark Open on Fireworks)
