@@ -356,6 +356,21 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
 .wearstrip figcaption { font-size: .75rem; line-height: 1.2; margin-top: 4px; }
 .wearstrip .missing { aspect-ratio: 1; display: grid; place-items: center; border: 1px dashed var(--rule); border-radius: var(--radius-s); font-size: .7rem; color: var(--ink-soft); padding: 4px; }
 .lifebig { font-size: 1.15rem; font-weight: 600; }
+
+/* ---------- anomaly lab ---------- */
+.lab { display: grid; gap: 16px; }
+.lab .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab .controls .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius-m); overflow: hidden; }
+.lab .controls .seg button { border: 0; background: var(--surface); padding: 8px 14px; cursor: pointer; font: inherit; }
+.lab .controls .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.lab .inject { display: flex; flex-wrap: wrap; gap: 8px; }
+.lab .inject button { border: 1.5px solid var(--fc); color: var(--fc); background: var(--surface); border-radius: var(--radius-m); padding: 8px 12px; cursor: pointer; font: inherit; font-weight: 600; }
+.lab .inject button:hover, .lab .inject button[aria-pressed="true"] { background: var(--fc); color: #fff; }
+.lab svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--rule); border-radius: var(--radius-s); }
+.labverdict { font-size: 1.05rem; line-height: 1.6; }
+.labverdict .vgood { color: var(--ok); font-weight: 700; display: inline; } .labverdict .vbad { color: var(--high); font-weight: 700; display: inline; }
+.labkey { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; }
+.labkey span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--fc); margin-right: 5px; vertical-align: -1px; }
 </style>
 </head>
 <body>
@@ -368,6 +383,7 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
     <button type="button" data-view="play" aria-pressed="true">Play a job</button>
     <button type="button" data-view="explore" aria-pressed="false">Explore faults</button>
     <button type="button" data-view="partcheck" aria-pressed="false">Check a part</button>
+    <button type="button" data-view="lab" aria-pressed="false">Anomaly lab</button>
     <button type="button" data-view="cards" aria-pressed="false">Job cards</button>
     <button type="button" data-view="investigate" aria-pressed="false">Investigate</button>
     <button type="button" data-view="testset" aria-pressed="false">How it was tested</button>
@@ -429,6 +445,26 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
     <div class="detail" id="detail">
       <div class="panel empty"><h2>Loading the reference library</h2></div>
     </div>
+  </section>
+
+  <!-- ANOMALY LAB -->
+  <section id="view-lab" hidden>
+    <div class="panel lab">
+      <div>
+        <h2>Anomaly lab: inject a fault, then find it</h2>
+        <p class="hint">A healthy unit runs. Partway through, the fault you pick creeps in, the way real faults start, stays, and is then repaired. FaultLens's own pattern model slides a window along the signal and labels every stretch. It runs on the trained model only: no API calls.</p>
+      </div>
+      <div class="controls">
+        <span class="seg" id="labSignal">
+          <button type="button" data-s="sensors" aria-pressed="true">Sensor log, 6 hours</button>
+          <button type="button" data-s="sound" aria-pressed="false">Sound, 60 seconds</button>
+        </span>
+        <span class="hint" id="labSetup"></span>
+      </div>
+      <div class="inject" id="labInject"></div>
+      <div id="labOut"><p class="hint">Pick a fault to inject.</p></div>
+    </div>
+    <div class="panel" id="labReport" style="margin-top:20px"></div>
   </section>
 
   <!-- CHECK A PART -->
@@ -573,7 +609,7 @@ const title = c => state.titles[c] || c;
 /* ---------- views ---------- */
 function showView(name) {
   document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
-  ["play", "explore", "partcheck", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  ["play", "explore", "partcheck", "lab", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
   if (name === "testset") loadReport();
 }
 document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
@@ -1332,6 +1368,106 @@ function partCheckHtml(res, compact) {
   </div>`;
 }
 
+
+/* ---------- anomaly lab ---------- */
+const LAB_COLOURS = { normal: "#5B6770", clogged_air_filter: "#B7791F", condenser_fan_failure: "#C8372D", low_refrigerant: "#1E63C6",
+  dirty_condenser_coil: "#7A5230", failed_compressor_capacitor: "#7B3FA0", faulty_room_thermistor: "#0F8A7A" };
+const LAB_SHORT = { normal: "No fault (control run)", clogged_air_filter: "Clogged filter", condenser_fan_failure: "Outdoor fan failure",
+  low_refrigerant: "Low refrigerant", dirty_condenser_coil: "Dirty outdoor coil", failed_compressor_capacitor: "Failed run capacitor",
+  faulty_room_thermistor: "Faulty room sensor" };
+const lab = { signal: "sensors", fault: null };
+$("#labInject").innerHTML = Object.keys(LAB_SHORT).filter(f => f !== "normal").concat(["normal"]).map(f =>
+  `<button type="button" data-f="${f}" style="--fc:${LAB_COLOURS[f]}">${f === "normal" ? "No fault (control)" : "Inject " + esc(LAB_SHORT[f].toLowerCase())}</button>`).join("");
+$("#labInject").querySelectorAll("button").forEach(b => b.addEventListener("click", () => { lab.fault = b.dataset.f; labRun(); }));
+$("#labSignal").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  lab.signal = b.dataset.s;
+  $("#labSignal").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (lab.fault) labRun();
+}));
+
+async function labRun() {
+  $("#labInject").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.f === lab.fault));
+  $("#labOut").innerHTML = `<p class="thinking">Building the signal and sliding the window…</p>`;
+  try {
+    const r = await fetch("/api/anomaly", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fault: lab.fault, signal: lab.signal }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail);
+    $("#labSetup").textContent = `Window ${d.window} ${d.unit}, moved ${d.step} ${d.unit} at a time. A stretch counts as a fault when the model is at least ${Math.round(d.sure * 100)}% sure for ${d.hold} windows in a row.`;
+    $("#labOut").innerHTML = labChart(d) + labVerdict(d) +
+      (d.sound_url ? `<p style="margin-top:8px"><audio controls preload="none" src="${esc(d.sound_url)}"></audio> <span class="hint">Listen to it.</span></p>` : "") +
+      `<p class="hint" style="margin-top:6px">Simulated signal, from the same physical models the pattern model was trained on. New unit and new fault timing every run.</p>`;
+  } catch (e) { $("#labOut").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+function labChart(d) {
+  const W = 1200, top = 50, plotH = 230, truthY = top + plotH + 16, H = truthY + 54, L = d.length;
+  const x = t => (t / L) * W;
+  let bands = "", plot = "", row = 0;
+  for (const s of d.segments) {
+    if (s.label === "normal") continue;
+    row = 1 - row;   // alternate two label rows so neighbouring labels never overlap
+    const c = LAB_COLOURS[s.label] || "#888";
+    bands += `<rect x="${x(s.start)}" y="${top}" width="${x(s.end) - x(s.start)}" height="${plotH}" fill="${c}" fill-opacity=".14" stroke="${c}" stroke-dasharray="6 4" stroke-width="1.5"/>
+      <text x="${Math.min(x(s.start) + 6, W - 230)}" y="${top - 8 - row * 20}" fill="${c}" font-size="15" font-weight="700" font-family="Barlow Semi Condensed, sans-serif" letter-spacing=".04em">${esc(LAB_SHORT[s.label].toUpperCase())} ${Math.round(s.confidence * 100)}%</text>`;
+  }
+  if (d.series.kind === "spectrogram") {
+    plot = `<image href="${d.series.image}" x="0" y="${top}" width="${W}" height="${plotH}" preserveAspectRatio="none" opacity=".92"/>`;
+  } else {
+    const vals = d.series.values.concat(d.series.compare ? d.series.compare.values : []);
+    const nr = d.series.normal_range || [];
+    let lo = Math.min(...vals, nr[0] ?? Infinity), hi = Math.max(...vals, nr[1] ?? -Infinity);
+    const pad = (hi - lo) * .08 || 1; lo -= pad; hi += pad;
+    const y = v => top + plotH - ((v - lo) / (hi - lo)) * plotH;
+    const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${(x(i + .5)).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    if (nr.length === 2) plot += `<rect x="0" y="${y(nr[1])}" width="${W}" height="${y(nr[0]) - y(nr[1])}" fill="#1E9E4A" fill-opacity=".07"/>
+      <text x="${W - 6}" y="${y(nr[1]) - 4}" text-anchor="end" font-size="12" fill="#1E7A3C">normal range</text>`;
+    if (d.series.compare) plot += `<path d="${path(d.series.compare.values)}" fill="none" stroke="#9AA4AB" stroke-width="1.5"/>`;
+    plot += `<path d="${path(d.series.values)}" fill="none" stroke="#16222B" stroke-width="1.6"/>
+      <text x="6" y="${top + 16}" font-size="13" fill="#16222B">${esc(d.series.name)}${d.series.compare ? " (grey: " + esc(d.series.compare.name.toLowerCase()) + ")" : ""}</text>`;
+  }
+  let truth = "";
+  if (d.truth) {
+    const [a, b] = d.truth, c = LAB_COLOURS[d.fault];
+    const n = d.weights.length, grad = d.weights.map((w, i) => `<stop offset="${(i / (n - 1) * 100).toFixed(1)}%" stop-color="${c}" stop-opacity="${w.toFixed(2)}"/>`).join("");
+    truth = `<defs><linearGradient id="ramp">${grad}</linearGradient></defs>
+      <rect x="0" y="${truthY}" width="${W}" height="12" fill="url(#ramp)" stroke="#C9CFD3"/>
+      <text x="${Math.min(x(a), W - 470)}" y="${truthY + 30}" font-size="13" fill="#16222B">injected here (true fault, fading in, then repaired at ${b}${d.unit})</text>`;
+  } else {
+    truth = `<rect x="0" y="${truthY}" width="${W}" height="12" fill="none" stroke="#C9CFD3"/><text x="0" y="${truthY + 28}" font-size="13" fill="#16222B">nothing injected: every flagged stretch is a false alarm</text>`;
+  }
+  const ticks = [0, .25, .5, .75, 1].map(f => `<text x="${Math.min(W - 4, Math.max(4, f * W))}" y="${truthY - 4}" font-size="11" fill="#5B6770" text-anchor="${f === 0 ? "start" : f === 1 ? "end" : "middle"}">${Math.round(f * L)} ${d.unit}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H + 12}" role="img" aria-label="Signal with detected fault stretches and the true fault stretch">${plot}${bands}${truth}${ticks}</svg>`;
+}
+
+function labVerdict(d) {
+  const s = d.score, u = d.unit, t = d.titles[d.fault];
+  const called = d.segments.filter(x => x.label !== "normal").map(x =>
+    `<b style="color:${LAB_COLOURS[x.label]}">${esc(LAB_SHORT[x.label])}</b> (${Math.round(x.confidence * 100)}%, ${x.start}-${x.end} ${u})`).join(", ") || "nothing";
+  if (!d.truth) return `<p class="labverdict" style="margin-top:12px">Control run, nothing injected. Model called: ${called}. ${s.false_alarms ? `<span class="vbad">${s.false_alarms} false alarm${s.false_alarms > 1 ? "s" : ""}</span>` : `<span class="vgood">No false alarms</span>`}.</p>`;
+  const parts = [
+    s.right_fault ? `<span class="vgood">right fault found</span>, ${Math.round(s.coverage * 100)}% of the true stretch covered, first caught ${s.delay} ${u} after it began` : `<span class="vbad">fault not found</span>`,
+    s.wrong_label_time ? `named the wrong fault for ${s.wrong_label_time} ${u} inside the stretch (${esc(s.wrong_labels.map(l => LAB_SHORT[l]).join(", "))}), usually while it was still mild` : "",
+    s.slow_to_clear ? `slow to clear by ${s.slow_to_clear} ${u} after the repair (each window still holds part of the fault)` : "",
+    s.false_alarms ? `<span class="vbad">${s.false_alarms} false alarm${s.false_alarms > 1 ? "s" : ""}</span> while healthy (${s.false_alarm_time} ${u})` : `<span class="vgood">no false alarms</span>`,
+  ].filter(Boolean);
+  return `<p class="labverdict" style="margin-top:12px">Injected: <b style="color:${LAB_COLOURS[d.fault]}">${esc(t)}</b> from ${d.truth[0]} to ${d.truth[1]} ${u}. Model called: ${called}.<br>${parts.join(" · ")}.</p>`;
+}
+
+fetch("/api/anomaly-report").then(r => r.ok ? r.json() : null).then(rep => {
+  if (!rep) { $("#labReport").innerHTML = `<p class="hint">Not measured yet.</p>`; return; }
+  const block = (sig, name) => {
+    const v = rep.signals[sig], u = v.unit;
+    const rows = Object.entries(v.faults).map(([f, x]) => f === "normal"
+      ? `<tr><td>${esc(LAB_SHORT[f])}</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">${x.runs_with_false_alarms}/${x.runs}</td></tr>`
+      : `<tr><td>${esc(LAB_SHORT[f])}</td><td class="num">${x.right_fault}/${x.runs}</td><td class="num">${Math.round(x.coverage * 100)}%</td><td class="num">${x.median_delay ?? "–"} ${u}</td><td class="num">${x.runs_with_false_alarms}/${x.runs}</td></tr>`).join("");
+    return `<h3 style="margin:12px 0 6px">${name}</h3><div class="scroll"><table class="mini"><thead><tr><th>Injected</th><th>Right fault found</th><th>Stretch covered</th><th>Caught after (median)</th><th>Runs with a false alarm</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  };
+  $("#labReport").innerHTML = `<h2>Measured over ${rep.runs_per_fault} runs per fault</h2>
+    <p class="hint">${esc(rep.note)} Each run is a new unit with new fault timing.</p>
+    ${block("sensors", "Sensor log")}${block("sound", "Sound")}
+    <p class="hint" style="margin-top:8px">Sound alone misses about half the clogged filters: a blocked indoor filter barely changes how the outdoor unit sounds. That is why FaultLens combines signals.</p>`;
+});
 /* ---------- job cards ---------- */
 const cards = { list: [], fields: [], current: null };
 fetch("/api/jobcards").then(r => r.json()).then(b => {

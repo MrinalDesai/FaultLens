@@ -37,6 +37,25 @@ The **Explore faults** view is a working simulation of every fault. Each fault h
 
 Pick a fault, listen to it, compare the thermal images, then press **Investigate this sample**. Or download the files and upload them under **Investigate**, which is exactly what a technician does in the field with their own recordings.
 
+## Anomaly lab: inject a fault, then find it
+
+Pick a signal (6 hours of sensor readings, or 60 seconds of sound) and a fault to inject. A healthy unit runs; partway through, the fault creeps in, stays, and is then repaired. FaultLens's own pattern model slides a window along the signal and labels every stretch, and the chart shows what it called, with its confidence, above the true fault stretch. It uses the trained model only: no API calls.
+
+An alarm is raised only when the model is sure enough for two windows in a row (80% for sensors, 70% for sound). Those settings were tuned on separate runs (seeds 5000-5007), then measured on runs never used for tuning (`models/anomaly_report.json`, 20 runs per fault):
+
+| Injected | Sensor log: right fault | Sensor log: caught after (median) | Sound: right fault | Sound: caught after (median) |
+|---|---|---|---|---|
+| Clogged filter | 20/20 | 18.5 min | 10/20 | 4.5 s |
+| Outdoor fan failure | 20/20 | 41.5 min | 20/20 | 5.5 s |
+| Low refrigerant | 20/20 | 11.8 min | 20/20 | 8.7 s |
+| Dirty outdoor coil | 20/20 | 15.6 min | 20/20 | 7.5 s |
+| Failed run capacitor | 20/20 | 34.8 min | 20/20 | 3.2 s |
+| Faulty room sensor | 20/20 | 11.2 min | 20/20 | 3.2 s |
+
+About 1 run in 10 still has a false alarm. Each run is scored on four things, shown under the chart: right fault found, how much of the true stretch it covered, how late it caught it (a fault that starts mildly is hard), and false alarms while the unit was healthy. Two more are reported apart, because they are not false alarms: naming the wrong fault while it was still mild (a slowing fan looks like a dirty coil), and being slow to clear after the repair (each window still holds part of the fault).
+
+Sound alone misses half the clogged filters: a blocked indoor filter barely changes how the outdoor unit sounds. That is why FaultLens combines signals. Remeasure with your trained model: `python -c "from faultlens import anomaly; anomaly.measure(20)"` (about 3 minutes).
+
 ## Alarm history
 
 Every unit also has its own fault log: the last 7 days of error codes, as a technician reads them from the display. The codes are a small demo table (each manufacturer uses its own) and the log is simulated from the fault, like the other signals.
@@ -185,6 +204,7 @@ faultlens/
   safety.py                Fixed safety rules applied after the model
   pipeline.py              One full round: parts, patterns, agent, safety, checker
   partcheck.py             Check a part from a photo against healthy and damaged references
+  anomaly.py               Anomaly lab: inject a fault into a healthy signal, find it with a sliding window
   alarms.py                The unit's fault log (demo error codes), simulated per fault
   wear.py                  Wear stages and typical remaining life for preventive maintenance
   parts.py                 Exploded view, parts list, outlines (SAM 3.1 or by hand)

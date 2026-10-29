@@ -1,0 +1,138 @@
+{
+ "runs_per_fault": 20,
+ "note": "Seeds 1000+; alarm settings were tuned on seeds 5000-5007.",
+ "signals": {
+  "sensors": {
+   "unit": "min",
+   "window": 30,
+   "sure": 0.8,
+   "hold": 2,
+   "faults": {
+    "normal": {
+     "runs": 20,
+     "runs_with_false_alarms": 2
+    },
+    "clogged_air_filter": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.863,
+     "median_delay": 18.5,
+     "wrong_label": 0.0,
+     "slow_to_clear": 3.4
+    },
+    "condenser_fan_failure": {
+     "runs": 20,
+     "runs_with_false_alarms": 3,
+     "right_fault": 20,
+     "coverage": 0.745,
+     "median_delay": 41.5,
+     "wrong_label": 35.6,
+     "slow_to_clear": 9.4
+    },
+    "low_refrigerant": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.925,
+     "median_delay": 11.8,
+     "wrong_label": 1.1,
+     "slow_to_clear": 5.1
+    },
+    "dirty_condenser_coil": {
+     "runs": 20,
+     "runs_with_false_alarms": 3,
+     "right_fault": 20,
+     "coverage": 0.887,
+     "median_delay": 15.6,
+     "wrong_label": 0.4,
+     "slow_to_clear": 8.9
+    },
+    "failed_compressor_capacitor": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.802,
+     "median_delay": 34.8,
+     "wrong_label": 0.0,
+     "slow_to_clear": 8.9
+    },
+    "faulty_room_thermistor": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.913,
+     "median_delay": 11.2,
+     "wrong_label": 0.0,
+     "slow_to_clear": 11.9
+    }
+   }
+  },
+  "sound": {
+   "unit": "s",
+   "window": 10,
+   "sure": 0.7,
+   "hold": 2,
+   "faults": {
+    "normal": {
+     "runs": 20,
+     "runs_with_false_alarms": 1
+    },
+    "clogged_air_filter": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 10,
+     "coverage": 0.16,
+     "median_delay": 4.5,
+     "wrong_label": 0.0,
+     "slow_to_clear": 0.3
+    },
+    "condenser_fan_failure": {
+     "runs": 20,
+     "runs_with_false_alarms": 1,
+     "right_fault": 20,
+     "coverage": 0.782,
+     "median_delay": 5.5,
+     "wrong_label": 1.9,
+     "slow_to_clear": 1.6
+    },
+    "low_refrigerant": {
+     "runs": 20,
+     "runs_with_false_alarms": 1,
+     "right_fault": 20,
+     "coverage": 0.528,
+     "median_delay": 8.7,
+     "wrong_label": 0.3,
+     "slow_to_clear": 0.2
+    },
+    "dirty_condenser_coil": {
+     "runs": 20,
+     "runs_with_false_alarms": 3,
+     "right_fault": 20,
+     "coverage": 0.654,
+     "median_delay": 7.5,
+     "wrong_label": 1.4,
+     "slow_to_clear": 2.0
+    },
+    "failed_compressor_capacitor": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.85,
+     "median_delay": 3.2,
+     "wrong_label": 0.0,
+     "slow_to_clear": 0.8
+    },
+    "faulty_room_thermistor": {
+     "runs": 20,
+     "runs_with_false_alarms": 2,
+     "right_fault": 20,
+     "coverage": 0.886,
+     "median_delay": 3.2,
+     "wrong_label": 0.1,
+     "slow_to_clear": 1.4
+    }
+   }
+  }
+ }
+}

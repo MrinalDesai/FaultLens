@@ -24,7 +24,7 @@ from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import alarms, cardreader, coach, parts, partcheck, wear, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import alarms, anomaly, cardreader, coach, parts, partcheck, wear, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
 from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
@@ -288,6 +288,49 @@ async def part_check(file: UploadFile | None = File(default=None), library_url: 
     res["healthy_reference"] = f"/library/parts/{parts.PARTS[res['part_no']][2]}" if parts.PARTS[res["part_no"]][2] else None
     res["diagram"] = f"/api/diagram.jpg?highlight={res['part_no']}"
     return res
+
+
+class AnomalyRun(BaseModel):
+    fault: str = "condenser_fan_failure"
+    signal: str = "sensors"
+    seed: int | None = None
+
+
+@app.post("/api/anomaly")
+def anomaly_run(body: AnomalyRun):
+    """Inject a fault into a healthy signal and let the pattern model find it. No API calls."""
+    if body.fault not in pattern.CLASSES or body.signal not in anomaly.SETUP:
+        raise HTTPException(400, "Unknown fault or signal.")
+    try:
+        r = anomaly.run(body.fault, body.signal, body.seed)
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    st, cfg = r["stream"], anomaly.SETUP[body.signal]
+    ser = dict(r["series"])
+    if ser["kind"] == "spectrogram":
+        ser["image"] = _data_url(ser["image"])
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    return {"fault": st["fault"], "signal": st["signal"], "seed": st["seed"], "length": st["length"], "truth": st["truth"],
+            "unit": cfg["unit"], "window": cfg["window"], "step": cfg["step"], "sure": cfg["sure"], "hold": cfg["hold"],
+            "weights": [round(float(x), 3) for x in st["weights"][:: max(1, len(st["weights"]) // 360)]],
+            "series": ser, "windows": r["found"]["windows"], "segments": r["found"]["segments"], "score": r["score"],
+            "titles": titles, "sound_url": f"/api/anomaly/sound.wav?fault={st['fault']}&seed={st['seed']}" if body.signal == "sound" else None}
+
+
+@app.get("/api/anomaly/sound.wav")
+def anomaly_sound(fault: str, seed: int):
+    if fault not in pattern.CLASSES:
+        raise HTTPException(400, "Unknown fault.")
+    st = anomaly.build(fault, "sound", seed)
+    return Response(render.write_wav(st["samples"]), media_type="audio/wav")
+
+
+@app.get("/api/anomaly-report")
+def anomaly_report():
+    path = ROOT / "models" / "anomaly_report.json"
+    if not path.exists():
+        raise HTTPException(404, "Not measured yet. Run: python -c \"from faultlens import anomaly; anomaly.measure(20)\"")
+    return json.loads(path.read_text())
 
 
 @app.get("/api/jobcards")
