@@ -24,7 +24,7 @@ from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import cardreader, coach, parts, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import cardreader, coach, parts, partcheck, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
 from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
@@ -247,6 +247,37 @@ def diagram(highlight: str = ""):
     buf = io.BytesIO()
     parts.highlight(nums).save(buf, format="JPEG", quality=85)
     return Response(buf.getvalue(), media_type="image/jpeg", headers={"Cache-Control": "max-age=3600"})
+
+
+@app.post("/api/partcheck")
+async def part_check(file: UploadFile | None = File(default=None), library_url: str = Form(""),
+                     part_no: str = Form(""), complaint: str = Form(""), job_id: str = Form("")):
+    lib_path = None
+    if library_url:
+        rel = library_url.split("/library/", 1)[-1]
+        lib_path = (library.LIBRARY / rel).resolve()
+        if library.LIBRARY.resolve() not in lib_path.parents or not lib_path.exists():
+            raise HTTPException(400, "That library photo does not exist.")
+        img = Image.open(lib_path).convert("RGB")
+    elif file is not None:
+        try:
+            img = Image.open(io.BytesIO(await file.read())).convert("RGB")
+        except Exception as e:
+            raise HTTPException(400, f"Could not open that photo: {e}")
+    else:
+        raise HTTPException(400, "Upload a photo of the part.")
+    if job_id and job_id in game.JOBS and not complaint:
+        complaint = game.JOBS[job_id].complaint
+    n = int(part_no) if part_no.strip().isdigit() and int(part_no) in parts.PARTS else None
+    try:
+        res = partcheck.check(img, n, complaint, lib_path)
+    except Exception as e:
+        raise HTTPException(502, f"Part check failed: {e}")
+    res["photo"] = _data_url(img, "JPEG", 900)
+    res["outlined"] = _data_url(res["outlined"], "JPEG", 900) if res["outlined"] is not None else None
+    res["healthy_reference"] = f"/library/parts/{parts.PARTS[res['part_no']][2]}" if parts.PARTS[res["part_no"]][2] else None
+    res["diagram"] = f"/api/diagram.jpg?highlight={res['part_no']}"
+    return res
 
 
 @app.get("/api/jobcards")

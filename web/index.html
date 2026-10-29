@@ -323,6 +323,21 @@ td.nomatch { color: var(--high); }
 .logphotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .logphotos figure { margin: 0; }
 .logphotos img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--rule); background: #fff; }
+
+/* ---------- check a part ---------- */
+.pcpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.pcpick button { padding: 0; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; cursor: pointer; }
+.pcpick button[aria-current="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.pcpick img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; border-radius: var(--radius-s); }
+.pcverdict { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+.pctag { display: inline-block; padding: 3px 10px; border-radius: 99px; font-weight: 600; font-size: .9rem; border: 1.5px solid currentColor; }
+.pctag.bad { color: var(--high); } .pctag.good { color: var(--ok); } .pctag.unclear { color: var(--ink-soft); }
+.pcimgs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 700px) { .pcimgs { grid-template-columns: 1fr 1fr; } }
+.pcimgs figure { margin: 0; } .pcimgs img { width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; }
+.known { border-left: 4px solid var(--rule); padding: 6px 12px; background: var(--ground); border-radius: var(--radius-s); }
+.known.yes { border-color: var(--ok); } .known.no { border-color: var(--high); }
+.checkbtn { margin-top: 6px; width: auto; font-size: .85rem; padding: 4px 10px; }
 </style>
 </head>
 <body>
@@ -334,6 +349,7 @@ td.nomatch { color: var(--high); }
   <nav aria-label="Views">
     <button type="button" data-view="play" aria-pressed="true">Play a job</button>
     <button type="button" data-view="explore" aria-pressed="false">Explore faults</button>
+    <button type="button" data-view="partcheck" aria-pressed="false">Check a part</button>
     <button type="button" data-view="cards" aria-pressed="false">Job cards</button>
     <button type="button" data-view="investigate" aria-pressed="false">Investigate</button>
     <button type="button" data-view="testset" aria-pressed="false">How it was tested</button>
@@ -394,6 +410,26 @@ td.nomatch { color: var(--high); }
     </div>
     <div class="detail" id="detail">
       <div class="panel empty"><h2>Loading the reference library</h2></div>
+    </div>
+  </section>
+
+  <!-- CHECK A PART -->
+  <section id="view-partcheck" class="cards" hidden>
+    <div class="cardlist">
+      <label class="drop" id="pcDrop">
+        <input type="file" id="pcFile" accept="image/*" hidden>
+        <span>Upload a photo of the part</span>
+        <span class="hint">Close up, the part filling the frame</span>
+      </label>
+      <label class="hint" style="display:grid;gap:4px;margin-top:8px">Which part is it?
+        <select id="pcPart"><option value="">Not sure: let FaultLens identify it</option></select></label>
+      <label class="hint" style="display:grid;gap:4px;margin-top:8px">Customer complaint (optional)
+        <input type="text" id="pcComplaint" placeholder="e.g. Outdoor unit hot, room not cooling"></label>
+      <p class="hint" style="margin:12px 2px 6px">Or try a photo from the library:</p>
+      <div class="pcpick" id="pcPick"></div>
+    </div>
+    <div class="panel" id="pcPanel">
+      <div class="empty"><h2>Check a part</h2><p>Photograph a part. FaultLens compares it with the healthy part and with known damage, then says whether to replace it and which fault it causes.</p></div>
     </div>
   </section>
 
@@ -519,7 +555,7 @@ const title = c => state.titles[c] || c;
 /* ---------- views ---------- */
 function showView(name) {
   document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
-  ["play", "explore", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  ["play", "explore", "partcheck", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
   if (name === "testset") loadReport();
 }
 document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
@@ -1073,9 +1109,16 @@ async function doAction(id) {
     if (v.sensor_summary) media += sensorTable(v.sensor_summary, true);
     if (f.card) media += `<div class="cardview"><img src="${esc(f.card.image)}" alt="Previous job card">
       ${f.card.fields ? `<div><p class="hint">Read by ${esc(f.card.model)}, ${f.card.seconds}s</p><pre class="json">${esc(JSON.stringify(f.card.fields, null, 2))}</pre></div>` : ""}</div>`;
-    if (f.photos) media += `<div class="logphotos">${f.photos.map(photoFigure).join("")}</div>`;
-    logMsg("tech", `<span class="who">You: ${esc(f.title)}</span><p class="hint">${esc(f.how)}</p>
+    if (f.photos) media += `<div class="logphotos">${f.photos.map(p => photoFigure(p) .replace("</figure>",
+      p.part ? `<button type="button" class="btn checkbtn" data-check="${esc(p.url)}">Check this part</button></figure>` : "</figure>")).join("")}</div>`;
+    const msg = logMsg("tech", `<span class="who">You: ${esc(f.title)}</span><p class="hint">${esc(f.how)}</p>
       ${f.warning ? `<p class="wrong">${esc(f.warning)}</p>` : ""}<p><b>${esc(f.finding)}</b></p>${media}`);
+    msg.querySelectorAll("[data-check]").forEach(btn => btn.addEventListener("click", () => {
+      const out = document.createElement("div");
+      out.className = "pcout panel"; out.style.marginTop = "10px";
+      msg.appendChild(out); btn.remove();
+      runPartCheck({ library_url: btn.dataset.check, job_id: job.id }, out, true);
+    }));
     renderPattern(body.pattern_match);
     setBusy(false);
     await advise();
@@ -1177,6 +1220,66 @@ function openConclude() {
     </div>`;
     $("#againBtn").addEventListener("click", () => { $("#playJob").hidden = true; $("#playStart").hidden = false; });
   });
+}
+
+/* ---------- check a part ---------- */
+fetch("/api/parts").then(r => r.json()).then(P => {
+  $("#pcPart").insertAdjacentHTML("beforeend", P.parts.filter(p => p.image).map(p => `<option value="${p.no}">#${p.no} ${esc(p.name)}</option>`).join(""));
+});
+fetch("/api/library").then(r => r.json()).then(b => {
+  const lib = (b.conditions || b.library || b);
+  const picks = [];
+  (Array.isArray(lib) ? lib : []).forEach(c => (c.photos || []).forEach(p => { if (c.condition !== "normal" && p.part) picks.push(p); }));
+  $("#pcPick").innerHTML = picks.map(p => `<button type="button" data-u="${esc(p.url)}" title="${esc(p.caption)}"><img src="${esc(p.url)}" alt="${esc(p.caption)}" loading="lazy"></button>`).join("");
+  $("#pcPick").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    $("#pcPick").querySelectorAll("button").forEach(x => x.setAttribute("aria-current", x === btn));
+    runPartCheck({ library_url: btn.dataset.u }, $("#pcPanel"));
+  }));
+});
+$("#pcFile").addEventListener("change", e => { if (e.target.files[0]) runPartCheck({ file: e.target.files[0] }, $("#pcPanel")); });
+const pcDrop = $("#pcDrop");
+["dragover", "dragenter"].forEach(t => pcDrop.addEventListener(t, e => { e.preventDefault(); pcDrop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => pcDrop.addEventListener(t, () => pcDrop.classList.remove("over")));
+pcDrop.addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer.files[0]) runPartCheck({ file: e.dataTransfer.files[0] }, $("#pcPanel")); });
+
+async function runPartCheck({ file = null, library_url = "", job_id = "" }, target, compact = false) {
+  target.innerHTML = `<p class="thinking">Comparing with the healthy part and known damage…</p>`;
+  const fd = new FormData();
+  if (file) fd.append("file", file);
+  if (library_url) fd.append("library_url", library_url);
+  if (job_id) fd.append("job_id", job_id);
+  if (!compact) { fd.append("part_no", $("#pcPart").value); fd.append("complaint", $("#pcComplaint").value); }
+  try {
+    const r = await fetch("/api/partcheck", { method: "POST", body: fd });
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail);
+    target.innerHTML = partCheckHtml(res, compact);
+  } catch (e) { target.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+}
+
+function partCheckHtml(res, compact) {
+  const cls = res.condition === "damaged" ? "bad" : res.condition === "healthy" ? "good" : "unclear";
+  const k = res.known;
+  const known = k ? `<div class="known ${res.agrees_with_known ? "yes" : "no"}"><b>Known answer:</b> #${k.part_no}, ${esc(k.condition)}${k.caption ? `: ${esc(k.caption)}` : ""}${k.fault_title ? ` (${esc(k.fault_title)})` : ""}.
+      <b>${res.agrees_with_known ? "✓ FaultLens agrees" : "✗ FaultLens got this wrong"}</b>
+      <br><span class="hint">This photo was left out of the references, so it could not be matched to itself.</span></div>` : "";
+  const imgs = `<div class="pcimgs">
+      <figure><img src="${res.outlined || res.photo}" alt="Technician's photo"><figcaption class="hint">${res.outlined ? esc(res.outline_note) : "Your photo" + (res.outline_note ? `. ${esc(res.outline_note)}` : "")}</figcaption></figure>
+      ${res.healthy_reference ? `<figure><img src="${esc(res.healthy_reference)}" alt="Healthy reference"><figcaption class="hint">Healthy ${esc(res.part_name.toLowerCase())}</figcaption></figure>` : ""}
+      ${compact ? "" : `<figure><img src="${esc(res.diagram)}" alt="Where the part sits"><figcaption class="hint">Where it sits (#${res.part_no})</figcaption></figure>`}
+    </div>`;
+  return `<div style="display:grid;gap:12px">
+    <div class="pcverdict"><h2 style="margin:0"><span class="pno">${res.part_no}</span>${esc(res.part_name)}</h2>
+      <span class="pctag ${cls}">${esc(res.condition)}</span><span class="pctag ${res.action === "replace" ? "bad" : res.action === "no_action" ? "good" : "unclear"}">${esc(res.action_text)}</span></div>
+    <p>${esc(res.what_i_see)}</p>
+    ${res.role_text ? `<p><b>${esc(res.role_text)}.</b>${res.fault_titles.length ? ` Points to: ${esc(res.fault_titles.join("; "))}.` : ""}
+      ${res.matches_complaint && res.matches_complaint !== "no complaint given" ? ` Matches the complaint: <b>${esc(res.matches_complaint)}</b>.` : ""}</p>` : ""}
+    ${res.next_check ? `<p><b>To confirm:</b> ${esc(res.next_check)}</p>` : ""}
+    ${known}
+    ${imgs}
+    <p class="hint">${res.identified_by ? `Part identified by ${esc(res.identified_by)}. ` : ""}${esc(res.model)}, ${res.seconds}s, confidence ${Math.round((res.confidence || 0) * 100)}%.
+      Compared with: ${esc((res.references_sent || []).join("; ") || "none")}.</p>
+  </div>`;
 }
 
 /* ---------- job cards ---------- */

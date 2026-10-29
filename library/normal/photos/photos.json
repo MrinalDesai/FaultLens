@@ -3,13 +3,15 @@
   "source": "chatgpt",
   "shows": "inspect_filter",
   "part": 2,
-  "caption": "Clean filter, light passes through"
+  "caption": "Clean filter, light passes through",
+  "role": "healthy"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "inspect_coil",
   "part": 3,
-  "caption": "Clean, dry indoor coil"
+  "caption": "Clean, dry indoor coil",
+  "role": "healthy"
  },
  "photo_03.jpg": {
   "source": "chatgpt",
@@ -18,6 +20,7 @@
    "measure_capacitor"
   ],
   "part": 15,
-  "caption": "Healthy run capacitor, flat top"
+  "caption": "Healthy run capacitor, flat top",
+  "role": "healthy"
  }
 }

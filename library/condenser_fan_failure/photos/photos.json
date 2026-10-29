@@ -4,7 +4,8 @@
   "shows": "inspect_fan_motor",
   "part": 12,
   "caption": "Fan motor windings burnt black",
-  "variant": "motor"
+  "variant": "motor",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
@@ -14,7 +15,8 @@
   ],
   "part": 11,
   "caption": "Fan hub and shaft rusted, bearing seizing",
-  "variant": "bearing"
+  "variant": "bearing",
+  "role": "cause"
  },
  "photo_03.jpg": {
   "source": "chatgpt",
@@ -24,6 +26,7 @@
   ],
   "part": 13,
   "caption": "Fan capacitor bulged and leaking",
-  "variant": "capacitor"
+  "variant": "capacitor",
+  "role": "cause"
  }
 }

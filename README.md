@@ -47,6 +47,20 @@ The outlines come from **SAM 3.1** once you run `python -m faultlens.parts --sam
 
 The exploded view and all part and fault photos are generated with ChatGPT, and labelled as generated wherever they appear.
 
+## Check a part from a photo
+
+The technician photographs a part. **Check a part** sends Muse Spark the photo together with the reference photo of that part when healthy and the reference photos of it damaged, and gets back:
+
+- which part it is (if the technician is not sure, a first step identifies it from a numbered sheet of all the parts),
+- healthy, damaged or unclear, and what it sees,
+- what to do: replace, clean, no action, or check further,
+- whether the damage **causes** a fault or is only a **symptom** of one elsewhere (frost on the indoor coil is caused by a blocked filter or low refrigerant, not by the coil), and which fault,
+- one check that would confirm it.
+
+SAM 3.1 then outlines the part in the photo. In a job, every part photo has a **Check this part** button.
+
+When a library photo is checked, that exact photo is left out of the references, so the model cannot match it to itself, and the known answer is shown beside the result.
+
 ## Job cards: reading handwriting
 
 Service technicians still write job cards by hand. The **Job cards** view holds 14 handwritten cards from earlier visits, two per condition, as PDF and image. Pick one, or upload your own PDF or photo, and FaultLens:
@@ -140,6 +154,7 @@ faultlens/
   checker.py               Independent checker (Muse Spark Open)
   safety.py                Fixed safety rules applied after the model
   pipeline.py              One full round: parts, patterns, agent, safety, checker
+  partcheck.py             Check a part from a photo against healthy and damaged references
   parts.py                 Exploded view, parts list, outlines (SAM 3.1 or by hand)
   jobcards.py              Generates the handwritten job cards (PDF, image, true contents)
   cardreader.py            Reads a job card into fields (Muse Spark Open on Fireworks)

@@ -3,12 +3,14 @@
   "source": "chatgpt",
   "shows": "inspect_condenser_fins",
   "part": 10,
-  "caption": "Outdoor coil fins packed with dirt and leaves"
+  "caption": "Outdoor coil fins packed with dirt and leaves",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "inspect_condenser_fins",
   "part": 10,
-  "caption": "Fins bent flat"
+  "caption": "Fins bent flat",
+  "role": "cause"
  }
 }

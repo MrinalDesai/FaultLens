@@ -4,19 +4,22 @@
   "shows": "inspect_joints",
   "part": 16,
   "caption": "Oily residue at a flare nut: refrigerant leak",
-  "variant": "flare"
+  "variant": "flare",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "inspect_joints",
   "part": 17,
   "caption": "Corroded copper pipe with a pinhole",
-  "variant": "pipe"
+  "variant": "pipe",
+  "role": "cause"
  },
  "photo_03.jpg": {
   "source": "chatgpt",
   "shows": "inspect_coil",
   "part": 3,
-  "caption": "Frost only at the inlet end of the indoor coil"
+  "caption": "Frost only at the inlet end of the indoor coil",
+  "role": "symptom"
  }
 }

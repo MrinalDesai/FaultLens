@@ -3,12 +3,14 @@
   "source": "chatgpt",
   "shows": "inspect_filter",
   "part": 2,
-  "caption": "Filter clogged with dust and lint"
+  "caption": "Filter clogged with dust and lint",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "inspect_coil",
   "part": 3,
-  "caption": "Frost on the lower part of the indoor coil"
+  "caption": "Frost on the lower part of the indoor coil",
+  "role": "symptom"
  }
 }

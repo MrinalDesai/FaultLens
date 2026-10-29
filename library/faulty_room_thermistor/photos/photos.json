@@ -4,19 +4,22 @@
   "shows": "measure_thermistor",
   "part": 6,
   "caption": "Sensor tip cracked, wire split",
-  "variant": "broken"
+  "variant": "broken",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "measure_thermistor",
   "part": 6,
   "caption": "Sensor fallen out of its broken clip",
-  "variant": "loose"
+  "variant": "loose",
+  "role": "cause"
  },
  "photo_03.jpg": {
   "source": "chatgpt",
   "shows": "compare_thermometer",
   "part": 9,
-  "caption": "Unit shows 18 C, thermometer reads 27 C"
+  "caption": "Unit shows 18 C, thermometer reads 27 C",
+  "role": "symptom"
  }
 }

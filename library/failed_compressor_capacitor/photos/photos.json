@@ -4,12 +4,14 @@
   "shows": "inspect_capacitor",
   "part": 15,
   "caption": "Run capacitor domed, scorched and leaking",
-  "variant": "domed"
+  "variant": "domed",
+  "role": "cause"
  },
  "photo_02.jpg": {
   "source": "chatgpt",
   "shows": "measure_capacitor",
   "part": 15,
-  "caption": "Meter reads 18.2 uF on a 35 uF capacitor"
+  "caption": "Meter reads 18.2 uF on a 35 uF capacitor",
+  "role": "measurement"
  }
 }
