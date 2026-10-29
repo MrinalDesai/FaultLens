@@ -46,3 +46,6 @@ COACH_REASONING = os.getenv("COACH_REASONING", "medium")
 # Agent loop limits.
 MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "6"))
 KEYFRAMES_PER_VIDEO = int(os.getenv("KEYFRAMES_PER_VIDEO", "4"))
+
+# Set by `python -m faultlens.checker` once a sound format is proven to reach the checker model.
+CHECKER_AUDIO_FORMAT = os.getenv("CHECKER_AUDIO_FORMAT", "").strip()

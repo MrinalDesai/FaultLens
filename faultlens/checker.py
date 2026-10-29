@@ -8,6 +8,7 @@ bonus prize requires. Partners use the Chat Completions format.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 
@@ -21,7 +22,8 @@ CHECKER_PROMPT = """You are a strict reviewer checking another assistant's diagn
 You do not propose your own diagnosis. You only judge whether the evidence actually supports the top-ranked cause.
 
 You are shown the same images the assistant saw (thermal images, sound spectrogram, photos) and the
-numbers printed on the thermal images. A claim about what an image shows counts as evidence if you can
+numbers printed on the thermal images. When a sound recording of the outdoor unit is attached, listen to
+it yourself: a missing fan tone, a hum followed by a click, rattles or hiss are evidence too. A claim about what an image shows counts as evidence if you can
 see it in that image or in its printed readings. Do not reject a claim only because it is not in the text.
 
 Reject if any of these are true:
@@ -50,6 +52,26 @@ def _images(ev: Evidence) -> list[tuple[str, object]]:
     for i, frame in enumerate(ev.frames[:4]):
         out.append((f"Photo {i}", frame))
     return out
+
+
+# The recording is only sent once `python -m faultlens.checker` has shown that a format really
+# reaches the model (CHECKER_AUDIO_FORMAT in .env). A request can succeed while the audio is
+# silently dropped, so "no error" is not proof. Set to False after a refusal this session.
+_PARTNER_TAKES_AUDIO = True
+AUDIO_FORMATS = ("audio_url", "input_audio")
+
+
+def _audio_part(ev: Evidence, fmt: str | None = None) -> list[dict]:
+    """The outdoor-unit recording as a WAV in the given format."""
+    fmt = fmt or config.CHECKER_AUDIO_FORMAT
+    if ev.sound is None or fmt not in AUDIO_FORMATS:
+        return []
+    wav = base64.b64encode(render.write_wav(ev.sound)).decode()
+    part = ({"type": "audio_url", "audio_url": {"url": "data:audio/wav;base64," + wav}} if fmt == "audio_url"
+            else {"type": "input_audio", "input_audio": {"data": wav, "format": "wav"}})
+    secs = len(ev.sound) / 16000
+    return [{"type": "text", "text": f"Sound recording of the outdoor unit ({secs:.0f} s, 16 kHz), the same recording the spectrogram shows:"},
+            part]
 
 
 def _evidence_text(ev: Evidence, assessment: dict) -> str:
@@ -95,24 +117,35 @@ def check(ev: Evidence, assessment: dict) -> dict:
     body = _evidence_text(ev, assessment)
     images = _images(ev)
     saw_images = bool(images)
+    heard_sound = False
     if config.CHECKER_BASE_URL:
+        global _PARTNER_TAKES_AUDIO
         partner = OpenAI(base_url=config.CHECKER_BASE_URL, api_key=config.CHECKER_API_KEY)
         content = [{"type": "text", "text": body}]
         for caption, img in images:
             content.append({"type": "text", "text": caption + ":"})
             content.append({"type": "image_url", "image_url": {"url": image_to_data_url(img)}})
-        try:
-            resp = partner.chat.completions.create(
+        audio = _audio_part(ev) if _PARTNER_TAKES_AUDIO else []
+
+        def ask(user_content):
+            return partner.chat.completions.create(
                 model=config.CHECKER_MODEL,
-                messages=[{"role": "system", "content": CHECKER_PROMPT}, {"role": "user", "content": content}],
-            )
-        except Exception:
-            # If the partner refuses images, fall back to text plus the printed thermal readings.
-            saw_images = False
-            resp = partner.chat.completions.create(
-                model=config.CHECKER_MODEL,
-                messages=[{"role": "system", "content": CHECKER_PROMPT}, {"role": "user", "content": body}],
-            )
+                messages=[{"role": "system", "content": CHECKER_PROMPT}, {"role": "user", "content": user_content}])
+
+        # Try images + sound, then images only, then text only. A rejected request is not billed as a
+        # completion, and once audio is refused it is not tried again in this session.
+        resp = None
+        if audio:
+            try:
+                resp, heard_sound = ask(content + audio), True
+            except Exception:
+                _PARTNER_TAKES_AUDIO = False
+        if resp is None:
+            try:
+                resp = ask(content)
+            except Exception:
+                saw_images = False
+                resp = ask(body)
         text, model = resp.choices[0].message.content, config.CHECKER_MODEL
     else:
         from .meta_client import client, text_part
@@ -124,4 +157,47 @@ def check(ev: Evidence, assessment: dict) -> dict:
             input=[{"role": "system", "content": CHECKER_PROMPT}, {"role": "user", "content": parts}],
         )
         text, model = resp.output_text, config.AGENT_MODEL
-    return {**_parse(text), "checker_model": model, "checker_saw_images": saw_images}
+    return {**_parse(text), "checker_model": model, "checker_saw_images": saw_images, "checker_heard_sound": heard_sound}
+
+
+def test_audio() -> None:
+    """Find a way of sending sound that really reaches the model. One small call per format.
+    Proof is the token count: 5 s of audio adds hundreds of input tokens; if it barely moves,
+    the audio was dropped even though the call succeeded."""
+    from . import simulate
+    if not config.CHECKER_BASE_URL:
+        raise SystemExit("No partner checker set in .env (CHECKER_BASE_URL).")
+    ev = Evidence()
+    ev.sound = simulate.sound("failed_compressor_capacitor", seconds=5, seed=7, severity=1.0)
+    partner = OpenAI(base_url=config.CHECKER_BASE_URL, api_key=config.CHECKER_API_KEY)
+    prompt = {"type": "text", "text": "Describe this 5-second sound recording in one sentence."}
+    baseline = partner.chat.completions.create(model=config.CHECKER_MODEL, max_tokens=1,
+                                               messages=[{"role": "user", "content": [prompt]}])
+    base_in = baseline.usage.prompt_tokens
+    print(f"Without sound: {base_in} input tokens")
+    working = None
+    for fmt in AUDIO_FORMATS:
+        try:
+            resp = partner.chat.completions.create(
+                model=config.CHECKER_MODEL, max_tokens=800,
+                messages=[{"role": "user", "content": [prompt] + _audio_part(ev, fmt)[1:]}])
+        except Exception as e:
+            print(f"{fmt}: refused ({str(e)[:120]})")
+            continue
+        extra = resp.usage.prompt_tokens - base_in
+        heard = (resp.choices[0].message.content or "").strip()
+        reached = extra > 50
+        print(f"{fmt}: {resp.usage.prompt_tokens} input tokens (+{extra}) -> "
+              f"{'SOUND REACHED THE MODEL' if reached else 'sound was dropped'}")
+        print(f"   it said: {heard[:200]}")
+        if reached and working is None:
+            working = fmt
+    if working:
+        print(f"\nAdd this line to .env, then restart the app:\nCHECKER_AUDIO_FORMAT={working}")
+    else:
+        print("\nNo format reached the model. Leave CHECKER_AUDIO_FORMAT out of .env: "
+              "the checker keeps using the spectrogram picture, and never claims it listened.")
+
+
+if __name__ == "__main__":
+    test_audio()

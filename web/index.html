@@ -889,7 +889,7 @@ function render() {
     </div>`).join("");
 
   const verdict = chk ? `<div class="verdict"><b class="${chk.verdict}">${chk.verdict === "accept" ? "Second check agrees" : "Second check disagrees"}</b>
-      <span class="hint">${esc(chk.checker_model)}${chk.checker_saw_images === false ? " (text only, images not accepted)" : ""}</span></div>
+      <span class="hint">${esc(chk.checker_model)}${chk.checker_saw_images === false ? " (text only, images not accepted)" : ""}${chk.checker_heard_sound ? ", listened to the recording" : ""}</span></div>
       ${chk.reasons?.length ? `<ul class="hint" style="margin:0">${chk.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}` : "";
   const safety = (a.safety_warnings || []).map(w => `<div class="tag danger"><h3>Before the next check</h3><p>${esc(w)}</p></div>`).join("");
   const next = a.next_check ? `<div class="check"><h3>Next check</h3><p>${esc(a.next_check.do)}</p>
@@ -1210,7 +1210,7 @@ function openConclude() {
         <div>You said<br><b class="${s.player_correct ? "right" : "wrong"}">${esc(s.player_title)}</b></div>
         <div>FaultLens said<br><b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b></div>
         <div>Second check<br><b class="${chk?.verdict === "accept" ? "right" : "wrong"}">${chk ? (chk.verdict === "accept" ? "Agreed with FaultLens" : chk.verdict === "reject" ? "Disagreed with FaultLens" : "Unavailable") : "Not run"}</b>
-          ${chk?.checker_model ? `<br><span class="hint">${esc(chk.checker_model)}</span>` : ""}</div>
+          ${chk?.checker_model ? `<br><span class="hint">${esc(chk.checker_model)}${chk.checker_heard_sound ? ", listened to the recording" : ""}</span>` : ""}</div>
       </div>
       <div><span class="points num">${s.points}</span> points
         <ul class="hint">${s.breakdown.map(([t, v]) => `<li>${esc(t)}: ${v > 0 ? "+" : ""}${v}</li>`).join("") || "<li>Clean job</li>"}</ul>

@@ -80,7 +80,7 @@ The cards are generated (`python -m faultlens.jobcards`) with handwriting fonts 
 | **Muse Spark 1.3** | The investigation agent. Looks at the thermal images and the sound spectrogram itself, reads the pattern match, sensor log and notes, calls tools for fault guides, and submits a ranked assessment with evidence for and against each cause. |
 | **SAM 3.1** | Finds named parts (filter, coil, fan, capacitor) in photos so the evidence can point at them. |
 | **Muse Voice Transcribe** | Turns the technician's spoken notes into text. |
-| **Muse Spark Open** (on Baseten) | The independent checker that accepts or rejects each diagnosis. |
+| **Muse Spark Open** (on Baseten) | The independent checker that accepts or rejects each diagnosis. It sees the same thermal images and **listens to the actual sound recording** of the outdoor unit, not just its spectrogram. |
 | **Muse Spark Open** (on Fireworks) | Reads handwritten job cards into organised fields. Falls back to Muse Spark 1.3 if no Fireworks key is set. |
 
 ## The pattern model
