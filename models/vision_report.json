@@ -1,0 +1,193 @@
+{
+ "what": "Muse Spark diagnosing from two thermal images and a spectrogram only (no sensor log, no notes). Units are simulated and generated fresh with new seeds.",
+ "units": 21,
+ "model": "muse-spark-1.3",
+ "provider": "meta",
+ "reasoning": "medium",
+ "accuracy": {
+  "muse_spark_images_only": 0.571,
+  "pattern_model_same_signals": 0.952,
+  "both_combined": 0.952
+ },
+ "accuracy_mild_faults": {
+  "muse_spark_images_only": 0.75,
+  "pattern_model_same_signals": 1.0,
+  "both_combined": 1.0
+ },
+ "chance": 0.143,
+ "usage": {
+  "input_tokens": 41811,
+  "output_tokens": 48037
+ },
+ "seconds": 258.2,
+ "rows": [
+  {
+   "condition": "normal",
+   "severity": 1.0,
+   "muse_spark": "normal",
+   "pattern_model": "normal",
+   "combined": "normal",
+   "what_muse_spark_saw": "Indoor coil is uniformly cold at ~14C against ~31C room, outdoor condenser is uniformly warm with a hot running compressor and cool capacitor, and spectrogram shows steady continuous broadband fan-plus-compressor noise with no interruption, hum-only, or cycling."
+  },
+  {
+   "condition": "normal",
+   "severity": 1.0,
+   "muse_spark": "clogged_air_filter",
+   "pattern_model": "normal",
+   "combined": "normal",
+   "what_muse_spark_saw": "Indoor coil uniformly very cold at 6.5C in a 27C room with cool condenser at 33.5C, hot running compressor at ~60C, and continuous broadband fan noise indicating normal outdoor operation but low indoor airflow."
+  },
+  {
+   "condition": "normal",
+   "severity": 1.0,
+   "muse_spark": "normal",
+   "pattern_model": "failed_compressor_capacitor",
+   "combined": "failed_compressor_capacitor",
+   "what_muse_spark_saw": "Uniformly cold indoor coil at ~13.6C against ~31.3C room, moderately warm outdoor coil with hot ~64C running compressor and steady broadband fan/compressor noise, indicating normal cooling operation."
+  },
+  {
+   "condition": "clogged_air_filter",
+   "severity": 0.75,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "clogged_air_filter",
+   "combined": "clogged_air_filter",
+   "what_muse_spark_saw": "Indoor coil is freezing at -3.9C with patchy bottom-only cold spots in a 26.8C room, outdoor coil is cool at 36.6C with a hot 60.2C compressor, and spectrogram shows steady broadband fan plus compressor noise, indicating starved evaporator with overheating compressor from low charge."
+  },
+  {
+   "condition": "clogged_air_filter",
+   "severity": 0.92,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "clogged_air_filter",
+   "combined": "clogged_air_filter",
+   "what_muse_spark_saw": "Indoor coil is only patchy cool with two -4.1C freezing spots, outdoor condenser is only moderately warm while compressor is hot at ~41.6C, with continuous broadband fan/compressor noise indicating the system is running but starved."
+  },
+  {
+   "condition": "clogged_air_filter",
+   "severity": 0.74,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "clogged_air_filter",
+   "combined": "clogged_air_filter",
+   "what_muse_spark_saw": "Indoor coil is near-freezing at 0.3C with patchy cold spots, outdoor compressor is overheated at ~61C with only mildly warm condenser while the spectrogram shows continuous fan/compressor noise, indicating a running but starved system."
+  },
+  {
+   "condition": "condenser_fan_failure",
+   "severity": 0.85,
+   "muse_spark": "faulty_room_thermistor",
+   "pattern_model": "condenser_fan_failure",
+   "combined": "condenser_fan_failure",
+   "what_muse_spark_saw": "Indoor coil uniformly cold at 18.3C with 27C room and outdoor coil warm with compressor ~61C showing normal refrigeration, but spectrogram shows loud broadband outdoor noise stopping abruptly after ~6s despite hot room indicating premature control shutoff."
+  },
+  {
+   "condition": "condenser_fan_failure",
+   "severity": 0.89,
+   "muse_spark": "condenser_fan_failure",
+   "pattern_model": "condenser_fan_failure",
+   "combined": "condenser_fan_failure",
+   "what_muse_spark_saw": "Indoor coil is uniformly cold around 13.2C, outdoor coil is hot with an overheated ~78C compressor, and the spectrogram shows loud broadband noise abruptly dropping halfway leaving only low-frequency hum indicating the outdoor fan stopped."
+  },
+  {
+   "condition": "condenser_fan_failure",
+   "severity": 0.83,
+   "muse_spark": "condenser_fan_failure",
+   "pattern_model": "condenser_fan_failure",
+   "combined": "condenser_fan_failure",
+   "what_muse_spark_saw": "Indoor coil is normally cold at 15.1C, outdoor compressor is severely overheated at 89.4C with hot condenser, and spectrogram shows loud running then abrupt silence indicating thermal trip from loss of condenser airflow."
+  },
+  {
+   "condition": "low_refrigerant",
+   "severity": 0.61,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "low_refrigerant",
+   "combined": "low_refrigerant",
+   "what_muse_spark_saw": "Indoor coil cold only at left inlet at 3.6C with gradient to warm, outdoor condenser cool near ambient at 32.5C while compressor is scorching hot, with continuous broadband fan noise plus low hum indicating running fan and compressor starved by low charge."
+  },
+  {
+   "condition": "low_refrigerant",
+   "severity": 0.73,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "low_refrigerant",
+   "combined": "low_refrigerant",
+   "what_muse_spark_saw": "Indoor coil is mostly room-warm at 26.4C with only the inlet freezing at 0.8C, outdoor coil is at ambient ~29.9C with a very hot ~67C running compressor and continuous broadband fan noise, indicating a starved evaporator from low charge."
+  },
+  {
+   "condition": "low_refrigerant",
+   "severity": 0.5,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "low_refrigerant",
+   "combined": "low_refrigerant",
+   "what_muse_spark_saw": "Indoor coil shows only inlet cold at 3.5C with rest warm near 30C room, outdoor condenser cool near ambient ~37C but compressor overheated to 78.5C with continuous low-frequency rumble, indicating starved evaporator from low charge."
+  },
+  {
+   "condition": "dirty_condenser_coil",
+   "severity": 0.61,
+   "muse_spark": "normal",
+   "pattern_model": "dirty_condenser_coil",
+   "combined": "dirty_condenser_coil",
+   "what_muse_spark_saw": "Indoor coil uniformly cold at 4.2C in 26C room, outdoor coil moderately warm above 35C ambient with hot ~72C running compressor and steady broadband fan plus low compressor hum for 10s indicating normal cooling."
+  },
+  {
+   "condition": "dirty_condenser_coil",
+   "severity": 0.64,
+   "muse_spark": "normal",
+   "pattern_model": "dirty_condenser_coil",
+   "combined": "dirty_condenser_coil",
+   "what_muse_spark_saw": "Indoor coil uniformly cold at 11.1C in 30C room, outdoor coil moderately warm above 37C ambient with compressor hot at ~60.7C, and continuous broadband low-plus-high frequency outdoor noise indicating fan and compressor both running normally."
+  },
+  {
+   "condition": "dirty_condenser_coil",
+   "severity": 0.45,
+   "muse_spark": "dirty_condenser_coil",
+   "pattern_model": "dirty_condenser_coil",
+   "combined": "dirty_condenser_coil",
+   "what_muse_spark_saw": "Indoor coil uniformly cold at 16.8C vs 27.4C ambient, outdoor condenser warm-blotchy with hot spots and hot 63.8C compressor with steady broadband fan-plus-compressor noise indicating fan running but poor heat rejection."
+  },
+  {
+   "condition": "failed_compressor_capacitor",
+   "severity": 0.54,
+   "muse_spark": "failed_compressor_capacitor",
+   "pattern_model": "failed_compressor_capacitor",
+   "combined": "failed_compressor_capacitor",
+   "what_muse_spark_saw": "Indoor coil near ambient with only slight cooling to 25.5C, outdoor coil cold with compressor overheated to ~73C, and low-frequency hum that stops after ~3s while broadband fan noise continues, indicating compressor failed to start."
+  },
+  {
+   "condition": "failed_compressor_capacitor",
+   "severity": 0.86,
+   "muse_spark": "failed_compressor_capacitor",
+   "pattern_model": "failed_compressor_capacitor",
+   "combined": "failed_compressor_capacitor",
+   "what_muse_spark_saw": "Indoor coil is still uniformly cold at 16.3C while outdoor coil is at ambient ~39C with compressor overheated to 74.8C and the low-frequency compressor hum stopping mid-spectrogram while broadband fan noise continues."
+  },
+  {
+   "condition": "failed_compressor_capacitor",
+   "severity": 0.75,
+   "muse_spark": "low_refrigerant",
+   "pattern_model": "failed_compressor_capacitor",
+   "combined": "failed_compressor_capacitor",
+   "what_muse_spark_saw": "Indoor coil uniformly cool only to ~22.8C vs ~32.5C room, outdoor coil at ambient ~40.8C while compressor is very hot ~76C, with fan broadband noise plus a steady low-frequency hum indicating compressor running but starved of heat-carrying refrigerant."
+  },
+  {
+   "condition": "faulty_room_thermistor",
+   "severity": 0.54,
+   "muse_spark": "condenser_fan_failure",
+   "pattern_model": "faulty_room_thermistor",
+   "combined": "faulty_room_thermistor",
+   "what_muse_spark_saw": "Indoor coil is ice-cold at 16C with 29C room air, outdoor compressor is glowing white-hot, and spectrogram shows loud broadband dropping out after ~2s leaving only low compressor hum."
+  },
+  {
+   "condition": "faulty_room_thermistor",
+   "severity": 0.68,
+   "muse_spark": "faulty_room_thermistor",
+   "pattern_model": "faulty_room_thermistor",
+   "combined": "faulty_room_thermistor",
+   "what_muse_spark_saw": "Indoor coil is uniformly cold at 16.4C vs 30C room, outdoor coil and hot compressor look normal, but spectrogram shows loud broadband outdoor noise stopping after ~2s despite hot room indicating premature thermostat cut-out."
+  },
+  {
+   "condition": "faulty_room_thermistor",
+   "severity": 0.62,
+   "muse_spark": "faulty_room_thermistor",
+   "pattern_model": "faulty_room_thermistor",
+   "combined": "faulty_room_thermistor",
+   "what_muse_spark_saw": "Indoor coil is cold at 20.7C vs 26.7C ambient, outdoor compressor is hot at 46.6C, and spectrogram shows loud broadband noise that abruptly stops early leaving quiet, indicating premature outdoor shutdown despite warm room."
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "condition": "dirty_condenser_coil",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-9494",
+  "date": "26 Feb 2026",
+  "customer": "N. Joshi",
+  "area": "Aundh",
+  "unit_model": "Coolwave CS-18F",
+  "serial_no": "M21-12024",
+  "complaint": "High bill",
+  "suction_psi": "134",
+  "compressor_amps": "9.1",
+  "supply_air_c": "15",
+  "work_done": "Outdoor unit boxed in by plants. Advised clearance",
+  "parts_used": "None",
+  "remarks": "Unit in balcony corner, no airflow",
+  "next_service": "Aug 2026",
+  "technician": "Joseph"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

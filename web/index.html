@@ -42,7 +42,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: 14px 24px; background: var(--ink); color: #fff;
 }
 .bar .unit { color: #B9C4CB; font-size: .95rem; }
-.bar nav { margin-left: auto; display: flex; gap: 4px; }
+.bar nav { margin-left: auto; display: flex; gap: 4px; max-width: 100%; overflow-x: auto; }
+.bar nav button { white-space: nowrap; flex: none; }
 .bar nav button {
   background: none; border: 0; color: #B9C4CB; padding: 6px 12px; border-radius: var(--radius-s); cursor: pointer;
 }
@@ -227,6 +228,86 @@ td.disagree { color: var(--high); }
 .scroll { overflow-x: auto; }
 .detail > *, .results > * { min-width: 0; }
 @media (max-width: 600px) { .bar-row { grid-template-columns: 1fr 1fr 40px; } .signals { grid-template-columns: 1fr; } }
+
+/* ---------- play a job ---------- */
+.play { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+.play > * { min-width: 0; }
+@media (max-width: 960px) { .play { grid-template-columns: 1fr; } }
+.jobside { display: grid; gap: 16px; position: sticky; top: 16px; }
+@media (max-width: 960px) { .jobside { position: static; } }
+.ticket h2 { margin-bottom: 6px; }
+.ticket .who { font-size: .85rem; opacity: .8; margin-bottom: 6px; }
+.ticket p.complaint { font-size: 1.05rem; }
+.status-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: .9rem; color: var(--ink-soft); }
+.power {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 2px solid var(--ok); border-radius: var(--radius-m); padding: 10px 12px; background: var(--surface);
+}
+.power[data-on="false"] { border-color: var(--high); }
+.power b { font-family: "Barlow Semi Condensed", sans-serif; font-size: 1.05rem; }
+.power .state { color: var(--ok); font-weight: 600; }
+.power[data-on="false"] .state { color: var(--high); }
+.menu { display: grid; gap: 12px; }
+.menu h3 { font-size: .95rem; color: var(--ink-soft); margin-bottom: 4px; }
+.menu .acts { display: grid; gap: 4px; }
+.act {
+  text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: var(--radius-s);
+  padding: 7px 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+}
+.act:hover { border-color: var(--ink); }
+.act small { color: var(--ink-soft); white-space: nowrap; }
+.act[data-done="true"] { color: var(--ink-soft); background: transparent; }
+.act[data-done="true"]::before { content: "✓ "; color: var(--ok); }
+.act[data-suggested="true"] { border-color: var(--low); box-shadow: inset 4px 0 0 var(--low); font-weight: 600; }
+.act:disabled { cursor: not-allowed; opacity: .55; }
+
+.board { display: grid; gap: 16px; }
+.meter-panel { position: sticky; top: 0; z-index: 2; padding: 12px 16px; box-shadow: 0 6px 12px -10px rgba(22,34,43,.5); }
+.meter-panel h3 { font-size: .95rem; }
+.meter-panel .bar-row { font-size: .88rem; grid-template-columns: minmax(120px, 1.2fr) 1fr 40px; }
+.meter-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 700px) { .meter-cols { grid-template-columns: 1fr; } }
+.log { display: grid; gap: 12px; }
+.msg { border-radius: var(--radius-m); padding: 12px 14px; display: grid; gap: 8px; }
+.msg.coach { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--low); }
+.msg.tech { background: #E4E8E4; }
+.msg.system { background: transparent; color: var(--ink-soft); padding: 2px 4px; font-size: .9rem; }
+.msg .who { font-size: .8rem; color: var(--ink-soft); }
+.msg img { max-width: 100%; border-radius: var(--radius-s); display: block; }
+.msg audio { width: 100%; max-width: 480px; }
+.msg .do { justify-self: start; }
+.thinking { color: var(--ink-soft); font-style: italic; }
+.askrow { display: flex; gap: 8px; position: sticky; bottom: 0; background: var(--ground); padding: 10px 0; }
+.askrow input { flex: 1; }
+.start { display: grid; gap: 16px; padding: 28px; }
+.start .row { flex-wrap: wrap; align-items: center; }
+.start .btn.primary { width: auto; }
+.choices { display: grid; gap: 6px; }
+.choices label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--rule); border-radius: var(--radius-s); background: #fff; cursor: pointer; }
+.reveal { display: grid; gap: 14px; }
+.points { font-family: "Barlow Semi Condensed", sans-serif; font-size: 3rem; font-weight: 700; line-height: 1; }
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.verdicts div { border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 10px 12px; background: #fff; }
+.right { color: var(--ok); font-weight: 600; }
+.wrong { color: var(--high); font-weight: 600; }
+
+/* ---------- job cards ---------- */
+.cards { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+.cards > * { min-width: 0; }
+@media (max-width: 960px) { .cards { grid-template-columns: 1fr; } }
+.cardlist { display: grid; gap: 6px; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+@media (max-width: 960px) { .cardlist { position: static; max-height: none; } }
+.cardlist button { text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 8px 12px; cursor: pointer; display: grid; gap: 2px; }
+.cardlist button[aria-current="true"] { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--ink); }
+.cardlist small { color: var(--ink-soft); }
+.cardview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .cardview { grid-template-columns: 1fr; } }
+.cardview > * { min-width: 0; }
+.cardview img { width: 100%; border-radius: var(--radius-s); border: 1px solid var(--rule); display: block; }
+pre.json { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--ink); color: #E6EDF0; padding: 14px; border-radius: var(--radius-s); overflow: auto; font-size: .82rem; max-height: 420px; }
+td.match { color: var(--ok); }
+td.nomatch { color: var(--high); }
+.mini { font-size: .88rem; }
 </style>
 </head>
 <body>
@@ -236,21 +317,84 @@ td.disagree { color: var(--high); }
   <span class="unit" id="unit">Loading…</span>
   <span class="mode" id="mode" hidden>Offline mode: canned answers</span>
   <nav aria-label="Views">
-    <button type="button" data-view="explore" aria-pressed="true">Explore faults</button>
+    <button type="button" data-view="play" aria-pressed="true">Play a job</button>
+    <button type="button" data-view="explore" aria-pressed="false">Explore faults</button>
+    <button type="button" data-view="cards" aria-pressed="false">Job cards</button>
     <button type="button" data-view="investigate" aria-pressed="false">Investigate</button>
     <button type="button" data-view="testset" aria-pressed="false">How it was tested</button>
   </nav>
 </header>
 
 <main>
+  <!-- PLAY A JOB -->
+  <section id="view-play">
+    <div id="playStart" class="panel start">
+      <div>
+        <h2>Take a service job</h2>
+        <p>A customer has called about their split AC. You don't know what's wrong. Work through it with FaultLens, one check at a time, the way you would on site.</p>
+      </div>
+      <div class="row">
+        <button type="button" class="btn primary" id="newMystery">Start a mystery job</button>
+        <span class="hint">or practise a known fault:</span>
+        <select id="practiceSel" style="width:auto"></select>
+        <button type="button" class="btn" id="newPractice">Practise</button>
+      </div>
+      <p class="hint">Every job is generated fresh: sound, thermal images and readings differ each time. Unsafe steps are stopped and cost points.</p>
+    </div>
+
+    <div id="playJob" class="play" hidden>
+      <aside class="jobside">
+        <div class="tag ticket" id="ticket"></div>
+        <div class="power" id="power" data-on="true">
+          <div><b>Unit power</b><br><span class="state" id="powerState">On, running</span></div>
+          <button type="button" class="btn" id="powerBtn">Isolate power</button>
+        </div>
+        <div class="status-row" id="jobStatus"></div>
+        <div class="panel menu" id="menu"></div>
+        <button type="button" class="btn primary" id="concludeBtn">Make the diagnosis</button>
+      </aside>
+
+      <div class="board">
+        <div class="panel meter-panel" id="meterPanel">
+          <div class="meter-cols">
+            <div><h3 style="margin-bottom:8px">FaultLens thinks</h3><div class="bars" id="coachBars"><p class="hint">Waiting for the first step.</p></div></div>
+            <div><h3 style="margin-bottom:8px">Pattern match from signals</h3><div class="bars" id="patternBars"><p class="hint">No sound, thermal image or readings collected yet.</p></div></div>
+          </div>
+        </div>
+        <div class="log" id="log" aria-live="polite"></div>
+        <div id="concludePanel" class="panel" hidden></div>
+        <div class="askrow">
+          <input type="text" id="askText" placeholder="Ask FaultLens, e.g. why not the capacitor?" aria-label="Question for FaultLens">
+          <button type="button" class="btn" id="askBtn">Ask</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- EXPLORE -->
-  <section id="view-explore" class="explore">
+  <section id="view-explore" class="explore" hidden>
     <div>
       <div class="conditions" id="conditions" role="list"></div>
       <p class="hint" style="margin-top:12px">Every fault has the same four signals, so you can compare them side by side.</p>
     </div>
     <div class="detail" id="detail">
       <div class="panel empty"><h2>Loading the reference library</h2></div>
+    </div>
+  </section>
+
+  <!-- JOB CARDS -->
+  <section id="view-cards" class="cards" hidden>
+    <div class="cardlist">
+      <label class="drop" id="cardDrop">
+        <input type="file" id="cardFile" accept=".pdf,image/*" hidden>
+        <span>Upload a job card</span>
+        <span class="hint">PDF or photo</span>
+      </label>
+      <p class="hint" style="margin:6px 2px">Or pick a card from previous visits:</p>
+      <div id="cardList" style="display:grid;gap:6px"></div>
+    </div>
+    <div class="panel" id="cardPanel">
+      <div class="empty"><h2>Read a handwritten job card</h2><p>Pick a card or upload one. FaultLens reads the handwriting and organises it into fields.</p></div>
     </div>
   </section>
 
@@ -323,6 +467,10 @@ td.disagree { color: var(--high); }
       <h2>Pattern model</h2>
       <p class="hint">Loading…</p>
     </div>
+    <div class="panel evalgrid" id="visionReport" style="margin-top:20px">
+      <h2>Muse Spark reading the images</h2>
+      <p class="hint">Loading…</p>
+    </div>
     <div class="panel evalgrid" style="margin-top:20px">
       <div>
         <h2>Full investigation on the test set</h2>
@@ -356,7 +504,7 @@ const title = c => state.titles[c] || c;
 /* ---------- views ---------- */
 function showView(name) {
   document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
-  ["explore", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  ["play", "explore", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
   if (name === "testset") loadReport();
 }
 document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
@@ -367,6 +515,7 @@ fetch("/api/profile").then(r => r.json()).then(p => {
   $("#mode").hidden = !p.mock;
   $("#checkerModel").textContent = p.models.checker;
   p.faults.forEach(f => state.titles[f.fault_id] = f.title);
+  initPlay();
   return fetch("/api/library").then(r => r.json());
 }).then(lib => {
   state.library = lib.conditions;
@@ -700,9 +849,35 @@ function sensorTable(s, open = false) {
 }
 
 /* ---------- how it was tested ---------- */
+async function loadVision() {
+  const r = await fetch("/api/vision-report");
+  const body = await r.json();
+  if (!r.ok) { $("#visionReport").innerHTML = `<h2>Muse Spark reading the images</h2><p class="hint">${esc(body.detail)}</p>`; return; }
+  const v = body.meta || body.open, o = body.open, mm = body.meta;
+  const line = (label, all, mild, strong) => `<tr><td>${strong ? `<b>${label}</b>` : label}</td><td class="num ${strong ? "score" : ""}">${pct(all)}</td><td class="num">${pct(mild)}</td></tr>`;
+  const rows = [];
+  if (mm) rows.push(line(`Muse Spark (${esc(mm.model)}), pictures only`, mm.accuracy.muse_spark_images_only, mm.accuracy_mild_faults.muse_spark_images_only, true));
+  if (o) rows.push(line(`Muse Spark Open (${esc(o.model.split("/").pop())}, Fireworks), pictures only`, o.accuracy.muse_spark_images_only, o.accuracy_mild_faults.muse_spark_images_only, true));
+  rows.push(line("Pattern model, same three signals", v.accuracy.pattern_model_same_signals, v.accuracy_mild_faults.pattern_model_same_signals));
+  if (mm) rows.push(line("Muse Spark and pattern model combined", mm.accuracy.both_combined, mm.accuracy_mild_faults.both_combined));
+  rows.push(`<tr><td class="hint">Guessing</td><td class="num hint">${pct(v.chance)}</td><td></td></tr>`);
+  const openBy = o ? o.rows : [];
+  const detail = v.rows.map((x, i) => { const ov = openBy[i]; const mv = mm ? mm.rows[i] : null;
+    return `<tr><td>${esc(title(x.condition))}</td><td class="num">${x.condition === "normal" ? "" : Math.round(x.severity * 100) + "%"}</td>
+      ${mm ? `<td class="${mv.muse_spark === x.condition ? "right" : "wrong"}">${esc(title(mv.muse_spark) || "no answer")}</td>` : ""}
+      ${o ? `<td class="${ov.muse_spark === x.condition ? "right" : "wrong"}">${esc(title(ov.muse_spark) || "no answer")}</td>` : ""}
+      <td>${esc((mv || ov).what_muse_spark_saw)}</td></tr>`; }).join("");
+  $("#visionReport").innerHTML = `
+    <div><h2>Meta's models reading the images</h2><p class="hint">${esc(v.what)} ${v.units} units; both models see exactly the same units.</p></div>
+    <table><thead><tr><th>Who diagnoses</th><th>Correct</th><th>Correct, mild faults</th></tr></thead><tbody>${rows.join("")}</tbody></table>
+    <details><summary>What the models said, unit by unit</summary><div class="scroll"><table style="margin-top:8px">
+      <thead><tr><th>Actual</th><th>Severity</th>${mm ? "<th>Muse Spark</th>" : ""}${o ? "<th>Muse Spark Open</th>" : ""}<th>What it saw</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
+}
+
 let reportLoaded = false;
 async function loadReport() {
   if (reportLoaded) return;
+  loadVision();
   const r = await fetch("/api/pattern-report");
   const body = await r.json();
   if (!r.ok) { $("#patternReport").innerHTML = `<h2>Pattern model</h2><p class="hint">${esc(body.detail)}</p>`; return; }
@@ -749,6 +924,236 @@ function renderEval({ report, results }) {
     <table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th></tr></thead><tbody>${rows}</tbody></table>
     <details style="margin-top:12px"><summary>Every case</summary>
       <table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th></tr></thead><tbody>${detail}</tbody></table></details>`;
+}
+
+/* ---------- play a job ---------- */
+const job = { id: null, data: null, suggested: null, busy: false };
+const POWER_WORD = { on: "unit running", off: "power off", any: "" };
+
+function initPlay() {
+  const sel = $("#practiceSel");
+  sel.innerHTML = Object.entries(state.titles).map(([id, t]) => `<option value="${esc(id)}">${esc(t)}</option>`).join("");
+}
+$("#newMystery").addEventListener("click", () => startJob(""));
+$("#newPractice").addEventListener("click", () => startJob($("#practiceSel").value));
+
+async function startJob(condition) {
+  const r = await fetch("/api/game/new", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ condition }) });
+  const body = await r.json();
+  if (!r.ok) return alertLog(body.detail);
+  job.id = body.id; job.data = body; job.suggested = null;
+  $("#playStart").hidden = true; $("#playJob").hidden = false;
+  $("#log").innerHTML = ""; $("#concludePanel").hidden = true;
+  $("#coachBars").innerHTML = `<p class="hint">Waiting for the first step.</p>`;
+  $("#patternBars").innerHTML = `<p class="hint">No sound, thermal image or readings collected yet.</p>`;
+  renderJob();
+  logMsg("system", body.practice ? `Practice job: ${esc(state.titles[body.condition])}.` : "Mystery job. The fault is hidden.");
+  await advise();
+}
+
+function renderJob() {
+  const d = job.data;
+  $("#ticket").innerHTML = `<div class="who">Job ${esc(d.id.toUpperCase())}${d.practice ? ", practice" : ""}</div>
+    <h2>Customer says</h2><p class="complaint">"${esc(d.complaint)}"</p>`;
+  $("#power").dataset.on = d.power_on;
+  $("#powerState").textContent = d.power_on ? "On, running" : "Isolated, safe to open";
+  $("#powerBtn").textContent = d.power_on ? "Isolate power" : "Restore power";
+  const checks = d.steps.filter(s => !s.action.startsWith("power")).length;
+  $("#jobStatus").innerHTML = `<span>${checks} check${checks === 1 ? "" : "s"} done</span>${d.blocked ? `<span class="wrong">${d.blocked} unsafe attempt${d.blocked === 1 ? "" : "s"} stopped</span>` : ""}`;
+  const groups = {};
+  d.actions.forEach(a => (groups[a.group] ||= []).push(a));
+  $("#menu").innerHTML = Object.entries(groups).map(([g, acts]) => `<div><h3>${esc(g)}</h3><div class="acts">${acts.map(a => `
+    <button type="button" class="act" data-a="${esc(a.id)}" data-done="${a.done}" data-suggested="${a.id === job.suggested}" ${a.done || job.busy ? "disabled" : ""}
+      title="${esc(a.how)}"><span>${esc(a.title)}${a.certified ? " (certified)" : ""}</span><small>${esc(POWER_WORD[a.power])}</small></button>`).join("")}</div></div>`).join("");
+  $("#menu").querySelectorAll(".act").forEach(b => b.addEventListener("click", () => doAction(b.dataset.a)));
+  $("#concludeBtn").disabled = job.busy;
+}
+
+function logMsg(kind, html) {
+  const div = document.createElement("div");
+  div.className = "msg " + kind; div.innerHTML = html;
+  $("#log").appendChild(div); div.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return div;
+}
+function alertLog(text) { logMsg("system", `<span class="wrong">${esc(text)}</span>`); }
+
+function setBusy(b) { job.busy = b; renderJob(); $("#askBtn").disabled = b; }
+
+async function doAction(id) {
+  if (job.busy) return;
+  if (id === "power_off" || id === "power_on") return togglePower(id === "power_on");
+  if (id === "conclude") return openConclude();
+  setBusy(true);
+  try {
+    const r = await fetch(`/api/game/${job.id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: id }) });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail);
+    job.data = body.job;
+    const f = body.found;
+    if (f.blocked) {
+      logMsg("tech", `<span class="who">You tried: ${esc(f.title)}</span><div class="tag danger" style="padding-left:52px"><p>${esc(f.message)}</p></div>`);
+      setBusy(false); return;
+    }
+    let media = "";
+    const v = body.views;
+    if (v.sound_url) media += `<audio controls src="${v.sound_url}"></audio><img src="${v.spectrogram}" alt="Spectrogram of the outdoor unit">`;
+    if (v.thermal) media += `<img src="${v.thermal}" alt="Thermal image">`;
+    if (v.sensor_summary) media += sensorTable(v.sensor_summary, true);
+    if (f.card) media += `<div class="cardview"><img src="${esc(f.card.image)}" alt="Previous job card">
+      ${f.card.fields ? `<div><p class="hint">Read by ${esc(f.card.model)}, ${f.card.seconds}s</p><pre class="json">${esc(JSON.stringify(f.card.fields, null, 2))}</pre></div>` : ""}</div>`;
+    if (f.photo) media += `<img src="${esc(f.photo.url)}" alt="${esc(f.title)}"><span class="source ${esc(f.photo.source)}">${esc(SOURCE_TEXT[f.photo.source] || f.photo.source)}</span>`;
+    logMsg("tech", `<span class="who">You: ${esc(f.title)}</span><p class="hint">${esc(f.how)}</p>
+      ${f.warning ? `<p class="wrong">${esc(f.warning)}</p>` : ""}<p><b>${esc(f.finding)}</b></p>${media}`);
+    renderPattern(body.pattern_match);
+    setBusy(false);
+    await advise();
+  } catch (e) { alertLog(e.message); setBusy(false); }
+}
+
+async function togglePower(on) {
+  if (job.busy) return;
+  const r = await fetch(`/api/game/${job.id}/power`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on }) });
+  const body = await r.json();
+  job.data = body.job;
+  logMsg("system", esc(body.message));
+  const wasSuggested = job.suggested === (on ? "power_on" : "power_off");
+  job.suggested = null;
+  renderJob();
+  if (wasSuggested) await advise();   // FaultLens asked for this; let it say what comes next
+}
+$("#powerBtn").addEventListener("click", () => togglePower(!job.data.power_on));
+
+function actionTitle(id) { return (job.data.actions.find(a => a.id === id) || {}).title || id; }
+
+async function advise(question = "") {
+  setBusy(true);
+  const thinking = logMsg("coach", `<span class="who">FaultLens</span><p class="thinking">Thinking…</p>`);
+  try {
+    const r = await fetch(`/api/game/${job.id}/advise`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    const a = await r.json();
+    if (!r.ok) throw new Error(a.detail);
+    job.suggested = a.next_action_id;
+    const doBtn = a.next_action_id && a.next_action_id !== "conclude"
+      ? `<button type="button" class="btn do" data-do="${esc(a.next_action_id)}">${esc(a.next_title)}</button>`
+      : `<button type="button" class="btn do" data-do="conclude">Make the diagnosis</button>`;
+    thinking.innerHTML = `<span class="who">FaultLens: ${esc(a.source)}${a.seconds ? `, ${a.seconds}s` : ""}</span>
+      <p>${esc(a.message)}</p>${a.safety_note ? `<p class="wrong">${esc(a.safety_note)}</p>` : ""}
+      ${a.ready_to_conclude && a.fix ? `<p><b>Fix:</b> ${esc(a.fix)}</p>` : ""}${doBtn}
+      ${a.error ? `<p class="hint">Model error: ${esc(a.error)}</p>` : ""}`;
+    thinking.querySelector("[data-do]").addEventListener("click", e => doAction(e.target.dataset.do));
+    renderCoachBars(a.hypotheses);
+  } catch (e) { thinking.innerHTML = `<span class="wrong">${esc(e.message)}</span>`; }
+  setBusy(false);
+}
+
+function bars(list, n = 3) {
+  return list.slice(0, n).map(x => `<div class="bar-row"><span>${esc(x.title || state.titles[x.condition || x.fault_id] || "")}</span>
+    <span class="track"><i style="width:${x.probability * 100}%"></i></span><span class="num">${pct(x.probability)}</span></div>`).join("");
+}
+function renderCoachBars(h) { $("#coachBars").innerHTML = h?.length ? bars(h) : `<p class="hint">No ranking yet.</p>`; }
+function renderPattern(pm) {
+  if (!pm) return;
+  const agree = Object.entries(pm.signals).map(([m, v]) =>
+    `<span class="${v.agrees_with_fused ? "right" : "wrong"}">${esc(SIGNAL_NAMES[m])}: ${v.agrees_with_fused ? "agrees" : "says " + esc(title(v.top))}</span>`).join(", ");
+  $("#patternBars").innerHTML = bars(pm.fused) + `<p class="hint" style="margin-top:6px;font-size:.82rem">${agree}</p>`;
+}
+
+$("#askBtn").addEventListener("click", ask);
+$("#askText").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+async function ask() {
+  const q = $("#askText").value.trim();
+  if (!q || job.busy || !job.id) return;
+  $("#askText").value = "";
+  logMsg("tech", `<span class="who">You asked</span><p>${esc(q)}</p>`);
+  await advise(q);
+}
+
+$("#concludeBtn").addEventListener("click", openConclude);
+function openConclude() {
+  const p = $("#concludePanel"); p.hidden = false;
+  p.innerHTML = `<h3 style="margin-bottom:10px">What is wrong with this unit?</h3>
+    <div class="choices">${job.data.faults.map(f => `<label><input type="radio" name="choice" value="${esc(f.fault_id)}"> ${esc(f.title)}</label>`).join("")}</div>
+    <div class="row" style="margin-top:12px"><button type="button" class="btn primary" id="submitDiag" style="width:auto">Submit diagnosis</button>
+    <button type="button" class="btn" id="cancelDiag">Keep investigating</button></div>`;
+  p.scrollIntoView({ behavior: "smooth" });
+  $("#cancelDiag").addEventListener("click", () => p.hidden = true);
+  $("#submitDiag").addEventListener("click", async () => {
+    const c = p.querySelector("input[name=choice]:checked");
+    if (!c) return;
+    setBusy(true);
+    p.innerHTML = `<p class="thinking">Second model checking FaultLens's call, then revealing the fault…</p>`;
+    const r = await fetch(`/api/game/${job.id}/conclude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ choice: c.value }) });
+    const s = await r.json();
+    setBusy(false);
+    const chk = s.checker;
+    p.innerHTML = `<div class="reveal">
+      <h2>The fault was: ${esc(s.actual_title)}${s.actual !== "normal" ? ` <span class="hint">(${Math.round(s.severity * 100)}% severity)</span>` : ""}</h2>
+      <div class="verdicts">
+        <div>You said<br><b class="${s.player_correct ? "right" : "wrong"}">${esc(s.player_title)}</b></div>
+        <div>FaultLens said<br><b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b></div>
+        <div>Second check<br><b class="${chk?.verdict === "accept" ? "right" : "wrong"}">${chk ? (chk.verdict === "accept" ? "Agreed with FaultLens" : chk.verdict === "reject" ? "Disagreed with FaultLens" : "Unavailable") : "Not run"}</b>
+          ${chk?.checker_model ? `<br><span class="hint">${esc(chk.checker_model)}</span>` : ""}</div>
+      </div>
+      <div><span class="points num">${s.points}</span> points
+        <ul class="hint">${s.breakdown.map(([t, v]) => `<li>${esc(t)}: ${v > 0 ? "+" : ""}${v}</li>`).join("") || "<li>Clean job</li>"}</ul>
+        <p class="hint">${s.checks_used} checks in ${Math.floor(s.seconds / 60)} min ${s.seconds % 60} s.</p></div>
+      <p><b>Fix:</b> ${esc(s.fix)}</p>
+      <div class="row"><button type="button" class="btn primary" id="againBtn" style="width:auto">Next job</button></div>
+    </div>`;
+    $("#againBtn").addEventListener("click", () => { $("#playJob").hidden = true; $("#playStart").hidden = false; });
+  });
+}
+
+/* ---------- job cards ---------- */
+const cards = { list: [], fields: [], current: null };
+fetch("/api/jobcards").then(r => r.json()).then(b => {
+  cards.list = b.cards; cards.fields = b.fields;
+  $("#cardList").innerHTML = b.cards.map(c => `<button type="button" data-c="${esc(c.id)}">
+    <b>${esc(c.date)}: ${esc(c.complaint)}</b><small>${esc(c.title)}</small></button>`).join("");
+  $("#cardList").querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => showCard(btn.dataset.c)));
+});
+function showCard(id) {
+  const c = cards.list.find(x => x.id === id); cards.current = c;
+  $("#cardList").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", b.dataset.c === id));
+  $("#cardPanel").innerHTML = `<div class="cardview">
+    <div><img src="${esc(c.image)}" alt="Handwritten job card, ${esc(c.date)}">
+      <p class="hint" style="margin-top:6px">Generated card, fictional customer. <a href="${esc(c.pdf)}" download>Download PDF</a></p></div>
+    <div id="cardResult"><button type="button" class="btn primary" id="readCard" style="width:auto">Read this card</button>
+      <p class="hint" style="margin-top:8px">Muse Spark Open reads the handwriting. Takes a few seconds.</p></div></div>`;
+  $("#readCard").addEventListener("click", () => readCard({ card_id: id }));
+  if (window.innerWidth < 960) $("#cardPanel").scrollIntoView({ behavior: "smooth" });
+}
+$("#cardFile").addEventListener("change", e => { if (e.target.files[0]) readCard({ file: e.target.files[0] }); });
+const cardDrop = $("#cardDrop");
+["dragover", "dragenter"].forEach(t => cardDrop.addEventListener(t, e => { e.preventDefault(); cardDrop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => cardDrop.addEventListener(t, () => cardDrop.classList.remove("over")));
+cardDrop.addEventListener("drop", e => { e.preventDefault(); if (e.dataTransfer.files[0]) readCard({ file: e.dataTransfer.files[0] }); });
+
+async function readCard({ card_id = "", file = null }) {
+  if (file) {
+    cards.current = null;
+    $("#cardList").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", "false"));
+    $("#cardPanel").innerHTML = `<div class="cardview"><div id="cardImg"><p class="hint">${esc(file.name)}</p></div><div id="cardResult"></div></div>`;
+  }
+  $("#cardResult").innerHTML = `<p class="thinking">Reading the handwriting…</p>`;
+  const fd = new FormData();
+  if (card_id) fd.append("card_id", card_id); else fd.append("file", file);
+  try {
+    const r = await fetch("/api/jobcard/read", { method: "POST", body: fd });
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail);
+    if (file) $("#cardImg").innerHTML = `<img src="${res.image}" alt="Uploaded job card">`;
+    const label = k => (cards.fields.find(f => f.key === k) || {}).label || k;
+    const rows = res.score ? res.score.rows.map(x => `<tr><td>${esc(x.label)}</td><td>${esc(x.read || "")}</td><td class="hint">${esc(x.on_card)}</td>
+        <td class="${x.match ? "match" : "nomatch"}">${x.match ? "✓" : "✗"}</td></tr>`).join("")
+      : Object.entries(res.fields).map(([k, v]) => `<tr><td>${esc(label(k))}</td><td>${esc(v ?? "")}</td></tr>`).join("");
+    $("#cardResult").innerHTML = `
+      <p class="hint">${esc(res.model)}, ${res.seconds}s</p>
+      ${res.score ? `<p><span class="score">${res.score.fields_right} of ${res.score.fields_total}</span> fields read exactly right</p>` : ""}
+      <div class="scroll"><table class="mini"><thead><tr><th>Field</th><th>Read as</th>${res.score ? "<th>On the card</th><th></th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div>
+      <h3 style="margin:14px 0 6px">As JSON</h3><pre class="json">${esc(JSON.stringify(res.fields, null, 2))}</pre>
+      <details><summary>Full transcription</summary><pre class="trace" style="white-space:pre-wrap">${esc(res.transcription)}</pre></details>`;
+  } catch (e) { $("#cardResult").innerHTML = `<div class="error">${esc(e.message)}</div>`; }
 }
 </script>
 </body>

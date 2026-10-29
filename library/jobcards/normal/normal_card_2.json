@@ -1,0 +1,22 @@
+{
+ "condition": "normal",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-6974",
+  "date": "3 Jul 2026",
+  "customer": "P. Iyer",
+  "area": "Kothrud",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "M35-54267",
+  "complaint": "Cooling feels less",
+  "suction_psi": "128",
+  "compressor_amps": "6.6",
+  "supply_air_c": "14",
+  "work_done": "Checked, no fault found. Explained set temp",
+  "parts_used": "None",
+  "remarks": "Customer had set temp at 26",
+  "next_service": "Jan 2027",
+  "technician": "Anil"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

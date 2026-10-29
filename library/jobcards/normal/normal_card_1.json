@@ -1,0 +1,22 @@
+{
+ "condition": "normal",
+ "handwriting_font": "caveat",
+ "fields": {
+  "job_no": "CF-3471",
+  "date": "13 Jul 2026",
+  "customer": "H. Patil",
+  "area": "Kothrud",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "T22-57931",
+  "complaint": "Annual service",
+  "suction_psi": "132",
+  "compressor_amps": "6.4",
+  "supply_air_c": "13",
+  "work_done": "Filters cleaned, coil washed, drain flushed",
+  "parts_used": "None",
+  "remarks": "All readings normal",
+  "next_service": "Jan 2027",
+  "technician": "Anil"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

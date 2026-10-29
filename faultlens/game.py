@@ -1,0 +1,317 @@
+"""The service-job simulator.
+
+A job is a unit with a hidden condition. The technician performs actions one at a time
+(listen, thermal camera, inspect, measure). Each action reveals what a real technician would
+find on that unit. Signals (sound, thermal images, sensor log) are generated fresh for every
+job from faultlens/simulate.py, so no two jobs are identical.
+
+Safety is part of the game: running checks need the unit powered on; anything that opens
+an electrical compartment or touches live parts needs the power isolated first. Blocked
+attempts are counted and cost points.
+
+The master diagnostician (faultlens/coach.py) suggests the next action; the technician
+can follow it or choose their own.
+"""
+
+from __future__ import annotations
+
+import json
+import random
+import time
+import uuid
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from . import knowledge, library, render, sensors, simulate
+
+POWER_ON, POWER_OFF, ANY = "on", "off", "any"
+
+# ----------------------------------------------------------------------------- actions
+# group, title, what the technician physically does, power needed, certified-only
+ACTIONS = {
+    "read_job_card":       ("History", "Read the last job card", "Photograph the previous visit's handwritten job card from the customer's file.", ANY, False),
+    "listen_outdoor":      ("Listen", "Listen to the outdoor unit", "Stand 1 m from the outdoor unit and record 10 seconds of sound.", POWER_ON, False),
+    "watch_outdoor_fan":   ("Listen", "Watch the outdoor fan", "Watch the outdoor fan blade through the grille for 30 seconds.", POWER_ON, False),
+    "listen_compressor":   ("Listen", "Listen at compressor start", "Restart the unit from the remote and listen at the outdoor unit as the compressor starts.", POWER_ON, False),
+    "feel_supply_air":     ("Listen", "Feel the air from the indoor unit", "Hold a hand and a thermometer at the indoor unit louvres on high fan.", POWER_ON, False),
+    "thermal_indoor":      ("Thermal camera", "Thermal image of the indoor coil", "Lift the front panel and take a thermal image of the indoor coil.", POWER_ON, False),
+    "thermal_outdoor":     ("Thermal camera", "Thermal image of the outdoor unit", "Take a thermal image of the outdoor unit with the side panel off.", POWER_ON, False),
+    "read_sensors":        ("Instruments", "Log readings for 30 minutes", "Clip on the data logger: air temperatures, currents, pressures, one reading a minute.", POWER_ON, False),
+    "compare_thermometer": ("Instruments", "Compare room reading with a thermometer", "Hold a reference thermometer at the air intake and compare with the room temperature the unit reports.", POWER_ON, False),
+    "gauge_pressures":     ("Instruments", "Connect refrigerant gauges", "Connect gauges to the service port and read suction and discharge pressure.", POWER_ON, True),
+    "inspect_filter":      ("Inspect", "Inspect the air filters", "Open the front panel, pull out the filters and hold them up to the light.", POWER_OFF, False),
+    "inspect_coil":        ("Inspect", "Inspect the indoor coil", "Look at the indoor coil face with a torch.", ANY, False),
+    "inspect_condenser_fins": ("Inspect", "Inspect the outdoor coil fins", "Shine a torch through the outdoor coil from the fan side.", POWER_OFF, False),
+    "inspect_joints":      ("Inspect", "Inspect pipe joints and valves", "Check the flare nuts and service valves at both units for oily residue.", ANY, False),
+    "inspect_capacitor":   ("Inspect", "Inspect the capacitors", "Remove the outdoor unit's electrical cover and look at the run and fan capacitors.", POWER_OFF, False),
+    "spin_fan_blade":      ("Inspect", "Spin the outdoor fan by hand", "With power isolated, spin the outdoor fan blade by hand.", POWER_OFF, False),
+    "measure_capacitor":   ("Measure", "Measure the compressor capacitor", "Discharge the run capacitor and measure it with a capacitance meter.", POWER_OFF, False),
+    "measure_fan_capacitor": ("Measure", "Measure the fan capacitor", "Discharge the fan capacitor and measure it.", POWER_OFF, False),
+    "measure_thermistor":  ("Measure", "Measure the room sensor", "Unplug the indoor room-temperature sensor and measure its resistance.", POWER_OFF, False),
+}
+
+# Signals revealed by an action, for the pattern model and the images.
+SIGNAL_OF = {"listen_outdoor": "sound", "thermal_indoor": "thermal_indoor",
+             "thermal_outdoor": "thermal_outdoor", "read_sensors": "sensors"}
+
+COMPLAINTS = {
+    "normal": ["It felt warm in the room yesterday evening. Seems okay now, but please check it.",
+               "Please do the yearly check. It cools, but I'm not sure it's as cold as before."],
+    "clogged_air_filter": ["Air from the AC is very weak, even on high fan. Water drips from the indoor unit sometimes.",
+                           "The room takes ages to cool and the air coming out feels feeble."],
+    "condenser_fan_failure": ["AC runs but the room doesn't cool. It switches itself off every few minutes.",
+                              "Cooling stopped this afternoon. The outdoor box is very hot."],
+    "low_refrigerant": ["Cooling has been getting worse every month. Now it barely cools at all.",
+                        "It runs all day and the room never gets cold. It had a gas top-up last year."],
+    "dirty_condenser_coil": ["Cools fine at night but struggles in the afternoon heat.",
+                             "Bills have gone up and it cools poorly when it's hot outside."],
+    "failed_compressor_capacitor": ["Indoor fan blows but the air isn't cold. Outside unit makes a loud hum and then clicks.",
+                                    "No cooling since the power cut last week. The fan works."],
+    "faulty_room_thermistor": ["The remote says the room is cold but it's actually hot. The outdoor unit doesn't start.",
+                               "AC blows room-temperature air. Outside unit is silent."],
+}
+
+
+def _results(cond: str, s: float, rng: random.Random, sensor_summary: dict) -> dict[str, str]:
+    """What each action finds on this unit. s = severity 0-1."""
+    mild = s < 0.45
+    st = sensor_summary["stats"]
+
+    def med(ch):
+        return st.get(ch, {}).get("median")
+
+    # Defaults: what a healthy unit shows.
+    r = {
+        "watch_outdoor_fan": "The fan turns steadily at full speed. Warm air leaves the top of the unit.",
+        "listen_compressor": "After the 3-minute delay the compressor starts smoothly with a short hum. The fan starts with it.",
+        "feel_supply_air": f"Strong airflow. Air at the louvres measures {rng.uniform(12, 14.5):.1f} C.",
+        "compare_thermometer": "The unit reads the room within 1 C of the reference thermometer.",
+        "gauge_pressures": f"Suction {med('suction_psig'):.0f} psi, discharge {med('discharge_psig'):.0f} psi.",
+        "inspect_filter": "Filters are clean. Light passes through the mesh easily.",
+        "inspect_coil": "The indoor coil is clean and evenly cold. No frost.",
+        "inspect_condenser_fins": "Light passes through the outdoor fins easily. Light dust only.",
+        "inspect_joints": "Flare nuts and service valves are clean and dry.",
+        "inspect_capacitor": "Both capacitors look normal: flat tops, no leaks, no scorch marks.",
+        "spin_fan_blade": "The blade spins freely and coasts to a smooth stop.",
+        "measure_capacitor": f"Run capacitor rated 35 uF reads {rng.uniform(33.8, 35.6):.1f} uF. Within tolerance.",
+        "measure_fan_capacitor": f"Fan capacitor rated 2.5 uF reads {rng.uniform(2.4, 2.6):.2f} uF. Within tolerance.",
+        "measure_thermistor": "Room sensor resistance matches its table for the current temperature.",
+    }
+
+    if cond == "clogged_air_filter":
+        r["inspect_filter"] = ("Filters are coated in grey dust. Light barely passes through." if not mild
+                               else "Filters have a visible dust layer. Some light still passes through.")
+        r["inspect_coil"] = ("Frost on the lower part of the indoor coil." if not mild
+                             else "The coil is very cold, with a thin frost line at the bottom.")
+        r["feel_supply_air"] = f"Weak airflow. The air is very cold: {rng.uniform(6, 9):.1f} C at the louvres."
+    elif cond == "condenser_fan_failure":
+        r["watch_outdoor_fan"] = ("The fan blade is not turning, although the compressor is running." if not mild
+                                  else "The fan turns slowly, well below normal speed, and seems to struggle.")
+        r["listen_compressor"] = "The compressor starts, labours louder and louder, and cuts out after a few minutes."
+        r["feel_supply_air"] = f"Airflow is fine but the air is barely cool: {rng.uniform(17, 21):.1f} C."
+        r["spin_fan_blade"] = rng.choice(["The blade is stiff and hard to turn: the bearing is seizing.",
+                                          "The blade spins freely, so the motor or its capacitor is the problem."])
+        if "freely" in r["spin_fan_blade"]:
+            r["measure_fan_capacitor"] = f"Fan capacitor rated 2.5 uF reads {rng.uniform(0.2, 0.9):.2f} uF. Failed."
+    elif cond == "low_refrigerant":
+        r["inspect_coil"] = "Frost on the inlet end of the indoor coil only. The rest of the coil is not cold."
+        r["inspect_joints"] = ("Oily, dust-caked residue around the outdoor suction valve flare nut."
+                               if rng.random() < 0.8 else "No obvious residue at the joints.")
+        r["feel_supply_air"] = f"Airflow is fine but the air is only cool: {rng.uniform(18, 21):.1f} C."
+        r["gauge_pressures"] = (f"Suction {med('suction_psig') or rng.uniform(65, 85):.0f} psi (low), "
+                                f"discharge {med('discharge_psig') or rng.uniform(230, 280):.0f} psi (low).")
+    elif cond == "dirty_condenser_coil":
+        r["inspect_condenser_fins"] = ("Little light passes: a mat of dust, lint and leaves on the outdoor fins." if not mild
+                                       else "Patches of dirt across the fins. Light passes in some places only.")
+        r["feel_supply_air"] = f"Airflow is fine. Air at the louvres is {rng.uniform(15, 17.5):.1f} C."
+    elif cond == "failed_compressor_capacitor":
+        r["listen_compressor"] = "A loud hum from the outdoor unit for 2-3 seconds, then a click and silence. The fan keeps running."
+        r["feel_supply_air"] = f"Airflow is fine but the air is not cold: {rng.uniform(27, 30):.1f} C."
+        r["inspect_capacitor"] = rng.choice(["The run capacitor's top is domed and there is brown residue at the terminals.",
+                                             "The run capacitor looks normal from the outside."])
+        r["measure_capacitor"] = f"Run capacitor rated 35 uF reads {rng.uniform(3, 12):.1f} uF. Failed."
+        r["gauge_pressures"] = "Suction and discharge read the same: the compressor is not pumping."
+    elif cond == "faulty_room_thermistor":
+        r["watch_outdoor_fan"] = "The outdoor unit is not running at all."
+        r["listen_compressor"] = "Nothing starts outside. The indoor fan keeps blowing."
+        r["feel_supply_air"] = f"Airflow is fine but the air is at room temperature: {rng.uniform(28, 30):.1f} C."
+        r["compare_thermometer"] = (f"The unit reports {rng.uniform(17, 20):.0f} C; the thermometer reads "
+                                    f"{rng.uniform(28, 30):.0f} C.")
+        r["measure_thermistor"] = "Room sensor reads open circuit (no reading) at its connector."
+        r["gauge_pressures"] = "Suction and discharge read the same: the compressor is off."
+    return r
+
+
+# ----------------------------------------------------------------------------- job state
+
+@dataclass
+class Job:
+    id: str
+    condition: str
+    severity: float
+    seed: int
+    complaint: str
+    practice: bool
+    power_on: bool = True
+    started: float = field(default_factory=time.time)
+    steps: list[dict] = field(default_factory=list)          # actions done, in order
+    blocked: list[dict] = field(default_factory=list)        # unsafe attempts
+    chat: list[dict] = field(default_factory=list)           # coach and technician messages
+    signals: dict = field(default_factory=dict)              # revealed signals (arrays / rows)
+    results: dict = field(default_factory=dict)
+    last_advice: dict | None = None
+    concluded: dict | None = None
+    sensor_rows: list = field(default_factory=list, repr=False)   # generated up front so gauges agree
+
+    def done_ids(self) -> list[str]:
+        return [s["action"] for s in self.steps]
+
+
+JOBS: dict[str, Job] = {}
+
+
+def new_job(condition: str | None = None, severity: float | None = None, seed: int | None = None) -> Job:
+    rng = random.Random(seed)
+    practice = condition is not None
+    cond = condition or rng.choice(simulate.CONDITIONS)
+    if cond not in simulate.CONDITIONS:
+        raise ValueError(f"Unknown condition {cond}")
+    sev = 1.0 if cond == "normal" else (severity if severity is not None else rng.uniform(0.35, 1.0))
+    job = Job(id=uuid.uuid4().hex[:8], condition=cond, severity=round(sev, 2), seed=rng.randint(0, 10**8),
+              complaint=rng.choice(COMPLAINTS[cond]), practice=practice)
+    sensor_rows = sensors.generate(cond, seed=job.seed, severity=sev)
+    job.results = _results(cond, sev, random.Random(job.seed), sensors.summarize(sensor_rows))
+    job.sensor_rows = sensor_rows
+    JOBS[job.id] = job
+    return job
+
+
+def get(job_id: str) -> Job:
+    if job_id not in JOBS:
+        raise KeyError(job_id)
+    return JOBS[job_id]
+
+
+def action_menu(job: Job) -> list[dict]:
+    out = []
+    for aid, (group, title, how, power, certified) in ACTIONS.items():
+        out.append({"id": aid, "group": group, "title": title, "how": how, "power": power,
+                    "certified": certified, "done": aid in job.done_ids()})
+    return out
+
+
+def _photo_for(cond: str, action_id: str) -> dict | None:
+    """A library photo for this action and condition, if one was added."""
+    folder = library.LIBRARY / cond / "photos"
+    meta_path = folder / "photos.json"
+    if not meta_path.exists():
+        return None
+    try:
+        meta = json.loads(meta_path.read_text())
+    except json.JSONDecodeError:
+        return None
+    for name, info in meta.items():
+        if isinstance(info, dict) and info.get("shows") == action_id and (folder / name).exists():
+            return {"url": f"/library/{cond}/photos/{name}", "source": info.get("source", "unlabelled")}
+    return None
+
+
+def perform(job: Job, action_id: str) -> dict:
+    """Do one action. Returns what was found, or a blocked notice if it is unsafe."""
+    if job.concluded:
+        raise ValueError("This job is finished. Start a new one.")
+    if action_id not in ACTIONS:
+        raise ValueError(f"Unknown action {action_id}")
+    group, title, how, power, certified = ACTIONS[action_id]
+
+    if power == POWER_OFF and job.power_on:
+        job.blocked.append({"action": action_id, "reason": "power_on"})
+        return {"blocked": True, "action": action_id, "title": title,
+                "message": "Stopped: this step opens the unit or touches electrical parts. Isolate the power first "
+                           "(isolator and breaker off, check zero volts, discharge capacitors)."}
+    if power == POWER_ON and not job.power_on:
+        return {"blocked": True, "action": action_id, "title": title, "safety_ok": True,
+                "message": "The unit is switched off. Restore power and run it before this check."}
+
+    found: dict = {"blocked": False, "action": action_id, "title": title, "how": how, "group": group}
+    if certified:
+        found["warning"] = "Certified refrigerant technicians only."
+    sig = SIGNAL_OF.get(action_id)
+    if sig == "sound":
+        x = simulate.sound(job.condition, seed=job.seed, severity=job.severity)
+        job.signals["sound"] = x
+        found["finding"] = "Recorded 10 seconds at the outdoor unit."
+    elif sig == "thermal_indoor":
+        job.signals["thermal_indoor"] = simulate.thermal_indoor(job.condition, seed=job.seed, severity=job.severity)
+        rd = render.thermal_readings(job.signals["thermal_indoor"])
+        found["finding"] = (f"Indoor coil captured. Hottest {rd['hottest_point_c']} C ({rd['hottest_point_at']}), "
+                            f"coldest {rd['coldest_point_c']} C ({rd['coldest_point_at']}).")
+    elif sig == "thermal_outdoor":
+        job.signals["thermal_outdoor"] = simulate.thermal_outdoor(job.condition, seed=job.seed, severity=job.severity)
+        rd = render.thermal_readings(job.signals["thermal_outdoor"])
+        found["finding"] = (f"Outdoor unit captured. Hottest {rd['hottest_point_c']} C ({rd['hottest_point_at']}), "
+                            f"coldest {rd['coldest_point_c']} C ({rd['coldest_point_at']}).")
+    elif sig == "sensors":
+        job.signals["sensors"] = job.sensor_rows
+        found["finding"] = "30 minutes of readings logged."
+    elif action_id == "read_job_card":
+        from . import cardreader, jobcards
+        cards = [c for c in jobcards.listing() if c["condition"] == job.condition]
+        if not cards:
+            found["finding"] = "No previous job card in the customer's file."
+        else:
+            card = random.Random(job.seed).choice(cards)
+            try:
+                res = cardreader.read(jobcards.image_for(card["id"]), card["id"])
+                found["finding"] = cardreader.history_summary(res["fields"])
+                found["card"] = {"image": card["image"], "fields": res["fields"], "model": res["model"],
+                                 "seconds": res["seconds"]}
+            except Exception as e:
+                found["finding"] = f"The job card could not be read ({e})."
+                found["card"] = {"image": card["image"]}
+    else:
+        found["finding"] = job.results[action_id]
+    photo = _photo_for(job.condition, action_id)
+    if photo:
+        found["photo"] = photo
+    job.steps.append({"action": action_id, "title": title, "finding": found["finding"], "t": round(time.time() - job.started)})
+    return found
+
+
+def set_power(job: Job, on: bool) -> str:
+    job.power_on = on
+    msg = ("Power restored. The unit is running." if on else
+           "Power isolated: isolator and breaker off, zero volts confirmed, capacitors discharged.")
+    job.steps.append({"action": "power_on" if on else "power_off", "title": msg, "finding": msg,
+                      "t": round(time.time() - job.started)})
+    return msg
+
+
+def score(job: Job, player_choice: str, coach_choice: str | None) -> dict:
+    """Points for the reveal card."""
+    correct = player_choice == job.condition
+    checks = [s for s in job.steps if s["action"] in ACTIONS]
+    pts = 100
+    breakdown = []
+    if not correct:
+        pts -= 50
+        breakdown.append(("Wrong diagnosis", -50))
+    extra = max(0, len(checks) - 4)
+    if extra:
+        pts -= 5 * extra
+        breakdown.append((f"{extra} check{'s' if extra > 1 else ''} beyond the first four", -5 * extra))
+    unsafe = len(job.blocked)
+    if unsafe:
+        pts -= 15 * unsafe
+        breakdown.append((f"{unsafe} unsafe attempt{'s' if unsafe > 1 else ''} stopped", -15 * unsafe))
+    if correct and len(checks) <= 3 and not unsafe:
+        pts += 10
+        breakdown.append(("Fast, safe and right", +10))
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    return {
+        "actual": job.condition, "actual_title": titles.get(job.condition, job.condition),
+        "severity": job.severity, "player_choice": player_choice, "player_correct": correct,
+        "coach_choice": coach_choice, "coach_correct": coach_choice == job.condition if coach_choice else None,
+        "checks_used": len(checks), "unsafe_attempts": unsafe, "seconds": round(time.time() - job.started),
+        "points": max(0, pts), "breakdown": breakdown,
+    }

@@ -1,0 +1,22 @@
+{
+ "condition": "low_refrigerant",
+ "handwriting_font": "nanum-pen-script",
+ "fields": {
+  "job_no": "CF-5708",
+  "date": "16 Mar 2026",
+  "customer": "R. Shah",
+  "area": "Baner",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "B47-51830",
+  "complaint": "Not cooling enough",
+  "suction_psi": "78",
+  "compressor_amps": "4.1",
+  "supply_air_c": "19",
+  "work_done": "Low gas. Topped up R32 0.4 kg. Leak not traced",
+  "parts_used": "R32 0.4 kg",
+  "remarks": "Oil mark at suction valve, check next time",
+  "next_service": "Sep 2026",
+  "technician": "Imran"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

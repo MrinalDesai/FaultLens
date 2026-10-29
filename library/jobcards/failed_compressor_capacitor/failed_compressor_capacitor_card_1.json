@@ -1,0 +1,22 @@
+{
+ "condition": "failed_compressor_capacitor",
+ "handwriting_font": "nanum-pen-script",
+ "fields": {
+  "job_no": "CF-6275",
+  "date": "1 Aug 2026",
+  "customer": "D. Bhosale",
+  "area": "Wakad",
+  "unit_model": "Coolwave CS-18F",
+  "serial_no": "M66-49324",
+  "complaint": "AC not starting after power cut",
+  "suction_psi": "128",
+  "compressor_amps": "7.9",
+  "supply_air_c": "14",
+  "work_done": "Voltage low 190 V. Started after reset",
+  "parts_used": "None",
+  "remarks": "Stabiliser recommended. Compressor hum at start",
+  "next_service": "Feb 2027",
+  "technician": "Imran"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

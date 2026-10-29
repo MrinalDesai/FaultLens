@@ -1,0 +1,22 @@
+{
+ "condition": "condenser_fan_failure",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-6749",
+  "date": "20 Mar 2026",
+  "customer": "D. Bhosale",
+  "area": "Aundh",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "K88-46043",
+  "complaint": "Tripping in afternoon",
+  "suction_psi": "136",
+  "compressor_amps": "8.9",
+  "supply_air_c": "16",
+  "work_done": "Fan slow to start. Tapped blade, started",
+  "parts_used": "None",
+  "remarks": "Check fan capacitor next visit",
+  "next_service": "",
+  "technician": "Joseph"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

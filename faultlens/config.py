@@ -27,12 +27,21 @@ if not CHECKER_API_KEY or CHECKER_API_KEY.startswith("your-"):
     # No real partner key yet: run the checker on Meta's API instead.
     CHECKER_BASE_URL = CHECKER_API_KEY = CHECKER_MODEL = ""
 
+# Fireworks: Muse Spark Open, used to compare Meta's open model in the vision benchmark
+# and as a backup host for the checker.
+FIREWORKS_BASE_URL = os.getenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
+FIREWORKS_API_KEY = os.getenv("FIREWORKS_API_KEY", "")
+FIREWORKS_MODEL = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/muse-spark-open")
+
 # Which equipment profile to load from faultlens/knowledge/<name>.yaml
 EQUIPMENT_PROFILE = os.getenv("EQUIPMENT_PROFILE", "split_ac")
 
 # Offline mode: no API calls, canned answers. For building the UI and tests
 # while the API account is unavailable. Never use for results you report.
 MOCK = os.getenv("FAULTLENS_MOCK", "0") == "1"
+
+# Reasoning effort for the step-by-step coach (low, medium, high). Medium keeps turns quick.
+COACH_REASONING = os.getenv("COACH_REASONING", "medium")
 
 # Agent loop limits.
 MAX_AGENT_TURNS = int(os.getenv("MAX_AGENT_TURNS", "6"))

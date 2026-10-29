@@ -1,0 +1,22 @@
+{
+ "condition": "condenser_fan_failure",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-7417",
+  "date": "25 May 2026",
+  "customer": "S. Fernandes",
+  "area": "Baner",
+  "unit_model": "Coolwave CS-18F",
+  "serial_no": "A93-14438",
+  "complaint": "Outdoor unit noisy",
+  "suction_psi": "130",
+  "compressor_amps": "7.1",
+  "supply_air_c": "14",
+  "work_done": "Outdoor fan bearing noisy, lubricated",
+  "parts_used": "None",
+  "remarks": "Fan motor to be replaced if noise returns",
+  "next_service": "Nov 2026",
+  "technician": "Anil"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

@@ -1,0 +1,22 @@
+{
+ "condition": "low_refrigerant",
+ "handwriting_font": "homemade-apple",
+ "fields": {
+  "job_no": "CF-9986",
+  "date": "26 Mar 2026",
+  "customer": "H. Patil",
+  "area": "Kharadi",
+  "unit_model": "Coolwave CS-18F",
+  "serial_no": "B73-37931",
+  "complaint": "Slow cooling",
+  "suction_psi": "84",
+  "compressor_amps": "4.4",
+  "supply_air_c": "18",
+  "work_done": "Gas top-up R32 0.3 kg",
+  "parts_used": "R32 0.3 kg",
+  "remarks": "Second top-up this year, leak likely",
+  "next_service": "Sep 2026",
+  "technician": "Joseph"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

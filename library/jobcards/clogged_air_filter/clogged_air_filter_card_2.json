@@ -1,0 +1,22 @@
+{
+ "condition": "clogged_air_filter",
+ "handwriting_font": "homemade-apple",
+ "fields": {
+  "job_no": "CF-9201",
+  "date": "26 May 2026",
+  "customer": "V. Pillai",
+  "area": "Hadapsar",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "M52-68977",
+  "complaint": "Water dripping indoor",
+  "suction_psi": "110",
+  "compressor_amps": "5.8",
+  "supply_air_c": "9",
+  "work_done": "Drain cleared. Filters dusty, cleaned",
+  "parts_used": "None",
+  "remarks": "Construction work next door, lot of dust",
+  "next_service": "Nov 2026",
+  "technician": "Anil"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

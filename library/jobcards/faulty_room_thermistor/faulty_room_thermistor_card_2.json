@@ -1,0 +1,22 @@
+{
+ "condition": "faulty_room_thermistor",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-6721",
+  "date": "5 May 2026",
+  "customer": "S. Fernandes",
+  "area": "Baner",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "M61-68394",
+  "complaint": "Display shows wrong temp",
+  "suction_psi": "127",
+  "compressor_amps": "6.0",
+  "supply_air_c": "13",
+  "work_done": "Reset unit. Sensor reading checked",
+  "parts_used": "None",
+  "remarks": "Replace room sensor if it repeats",
+  "next_service": "Nov 2026",
+  "technician": "Imran"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

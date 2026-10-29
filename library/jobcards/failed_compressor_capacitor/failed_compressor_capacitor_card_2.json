@@ -1,0 +1,22 @@
+{
+ "condition": "failed_compressor_capacitor",
+ "handwriting_font": "homemade-apple",
+ "fields": {
+  "job_no": "CF-5530",
+  "date": "6 Apr 2026",
+  "customer": "A. Kulkarni",
+  "area": "Aundh",
+  "unit_model": "Arctiq S12-R32",
+  "serial_no": "K62-13311",
+  "complaint": "Humming sound outside",
+  "suction_psi": "130",
+  "compressor_amps": "7.6",
+  "supply_air_c": "14",
+  "work_done": "Capacitor tested 31 uF (rated 35). Within limit",
+  "parts_used": "None",
+  "remarks": "Capacitor weak, replace soon",
+  "next_service": "Oct 2026",
+  "technician": "Joseph"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

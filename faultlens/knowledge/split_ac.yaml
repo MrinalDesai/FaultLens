@@ -57,7 +57,7 @@ faults:
     fix: Clean or replace filters; let any ice melt fully before restarting.
 
   condenser_fan_failure:
-    title: Outdoor (condenser) fan not running
+    title: Outdoor fan not running (motor, capacitor or bearing)
     summary: Without outdoor airflow the refrigerant cannot reject heat; head pressure climbs until the unit trips.
     sensor_signature: Outdoor fan current near zero, very high discharge pressure, high compressor current, repeated high-pressure trips, poor cooling.
     visual_signs: [outdoor fan blade stationary while compressor runs, hot air not leaving the outdoor unit, burnt smell near fan motor]

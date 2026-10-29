@@ -1,0 +1,22 @@
+{
+ "condition": "clogged_air_filter",
+ "handwriting_font": "nanum-pen-script",
+ "fields": {
+  "job_no": "CF-8057",
+  "date": "6 Jun 2026",
+  "customer": "A. Kulkarni",
+  "area": "Kothrud",
+  "unit_model": "Arctiq S12-R32",
+  "serial_no": "M74-97889",
+  "complaint": "Weak air flow",
+  "suction_psi": "104",
+  "compressor_amps": "5.6",
+  "supply_air_c": "8",
+  "work_done": "Filters very dusty, cleaned. Ice on coil, defrosted",
+  "parts_used": "None",
+  "remarks": "Advised filter cleaning every month",
+  "next_service": "",
+  "technician": "Anil"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}

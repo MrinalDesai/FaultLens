@@ -19,11 +19,13 @@ sys.path.insert(0, str(ROOT))
 
 import uvicorn  # noqa: E402
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
-from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.responses import FileResponse, Response  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
 
-from faultlens import config, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens import cardreader, coach, config, game, jobcards, knowledge, library, pattern, render, sensors, voice  # noqa: E402
+from faultlens.checker import check as run_checker  # noqa: E402
 from faultlens.agent import Evidence  # noqa: E402
 from faultlens.media import draw_boxes, extract_keyframes  # noqa: E402
 from faultlens.pipeline import locate_parts, match_patterns, run_round  # noqa: E402
@@ -143,6 +145,15 @@ def pattern_report():
     return json.loads(pattern.REPORT_PATH.read_text())
 
 
+@app.get("/api/vision-report")
+def vision_report():
+    meta, open_ = ROOT / "models" / "vision_report.json", ROOT / "models" / "vision_report_open.json"
+    if not meta.exists() and not open_.exists():
+        raise HTTPException(404, "Not measured yet. Run: python -m eval.vision_eval")
+    return {"meta": json.loads(meta.read_text()) if meta.exists() else None,
+            "open": json.loads(open_.read_text()) if open_.exists() else None}
+
+
 @app.post("/api/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
     try:
@@ -214,6 +225,171 @@ async def investigate(
 
     return {**result, "photos": photos, "views": _signal_views(ev), "received": received,
             "sensor_summary": ev.sensor_summary(), "notes_used": ev.notes, "titles": titles}
+
+
+# ------------------------------------------------------------------ job cards
+
+@app.get("/api/jobcards")
+def jobcard_list():
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    cards = jobcards.listing()
+    for c in cards:
+        c["title"] = titles.get(c["condition"], c["condition"])
+    return {"cards": cards, "fields": [{"key": k, "label": jobcards.LABELS[k]} for k in jobcards.FIELDS]}
+
+
+@app.post("/api/jobcard/read")
+async def jobcard_read(file: UploadFile | None = File(default=None), card_id: str = Form("")):
+    if card_id:
+        img = jobcards.image_for(card_id)
+        if img is None:
+            raise HTTPException(404, f"No job card {card_id}.")
+    elif file is not None:
+        try:
+            img = cardreader.load_upload(await file.read(), file.filename or "")
+        except Exception as e:
+            raise HTTPException(400, f"Could not open that file: {e}")
+    else:
+        raise HTTPException(400, "Choose a library card or upload a PDF or photo of a job card.")
+    try:
+        res = cardreader.read(img, card_id or None)
+    except Exception as e:
+        raise HTTPException(502, f"Reading failed: {e}")
+    truth = jobcards.truth_for(card_id) if card_id else None
+    res["score"] = cardreader.score(res["fields"], truth) if truth else None
+    res["image"] = _data_url(img, "JPEG", 1400)
+    return res
+
+
+# ------------------------------------------------------------------ the job simulator
+
+class NewJob(BaseModel):
+    condition: str = ""      # empty = mystery job
+    seed: int | None = None
+
+
+class Act(BaseModel):
+    action: str
+
+
+class Power(BaseModel):
+    on: bool
+
+
+class Ask(BaseModel):
+    question: str = ""
+
+
+class Conclude(BaseModel):
+    choice: str
+
+
+def _job(job_id: str) -> game.Job:
+    try:
+        return game.get(job_id)
+    except KeyError:
+        raise HTTPException(404, "That job has expired. Start a new one.")
+
+
+def _job_view(job: game.Job) -> dict:
+    return {"id": job.id, "complaint": job.complaint, "practice": job.practice, "power_on": job.power_on,
+            "condition": job.condition if job.practice else None,
+            "actions": game.action_menu(job), "steps": job.steps, "blocked": len(job.blocked),
+            "faults": knowledge.fault_menu()}
+
+
+@app.post("/api/game/new")
+def game_new(body: NewJob):
+    try:
+        job = game.new_job(body.condition or None, seed=body.seed)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _job_view(job)
+
+
+@app.post("/api/game/{job_id}/action")
+def game_action(job_id: str, body: Act):
+    job = _job(job_id)
+    try:
+        found = game.perform(job, body.action)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    views = {}
+    a = body.action
+    if not found["blocked"]:
+        if a == "listen_outdoor":
+            views["spectrogram"] = _data_url(render.spectrogram(job.signals["sound"]))
+            views["sound_url"] = f"/api/game/{job.id}/sound.wav"
+        elif a == "thermal_indoor":
+            views["thermal"] = _data_url(render.thermal_view(job.signals["thermal_indoor"]))
+        elif a == "thermal_outdoor":
+            views["thermal"] = _data_url(render.thermal_view(job.signals["thermal_outdoor"]))
+        elif a == "read_sensors":
+            views["sensor_summary"] = sensors.summarize(job.signals["sensors"])
+    return {"found": found, "views": views, "pattern_match": coach.pattern_for(job), "job": _job_view(job)}
+
+
+@app.get("/api/game/{job_id}/sound.wav")
+def game_sound(job_id: str):
+    job = _job(job_id)
+    if "sound" not in job.signals:
+        raise HTTPException(404, "No sound recorded yet on this job.")
+    return Response(render.write_wav(job.signals["sound"]), media_type="audio/wav")
+
+
+@app.post("/api/game/{job_id}/power")
+def game_power(job_id: str, body: Power):
+    job = _job(job_id)
+    msg = game.set_power(job, body.on)
+    return {"message": msg, "job": _job_view(job)}
+
+
+@app.post("/api/game/{job_id}/advise")
+def game_advise(job_id: str, body: Ask):
+    job = _job(job_id)
+    t = time.time()
+    advice = coach.advise(job, body.question.strip() or None)
+    advice["seconds"] = round(time.time() - t, 1)
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    for h in advice["hypotheses"]:
+        h["title"] = titles.get(h["fault_id"], h["fault_id"])
+    nxt = advice.get("next_action_id")
+    advice["next_title"] = (game.ACTIONS[nxt][1] if nxt in game.ACTIONS else
+                            {"power_off": "Isolate the power", "power_on": "Restore power",
+                             "conclude": "Make the diagnosis"}.get(nxt, ""))
+    return advice
+
+
+@app.post("/api/game/{job_id}/conclude")
+def game_conclude(job_id: str, body: Conclude):
+    job = _job(job_id)
+    if job.concluded:
+        return job.concluded
+    adv = job.last_advice or {}
+    coach_choice = adv.get("final_fault_id")
+    verdict = None
+    if adv.get("hypotheses"):
+        # The second model reviews FaultLens's final call against the same evidence and images.
+        ev = Evidence(notes=[f"{s['title']}: {s['finding']}" for s in job.steps])
+        ev.sound = job.signals.get("sound")
+        ev.thermal_indoor = job.signals.get("thermal_indoor")
+        ev.thermal_outdoor = job.signals.get("thermal_outdoor")
+        ev.sensor_rows = job.signals.get("sensors", [])
+        ev.pattern_match = coach.pattern_for(job)
+        assessment = {"status": "confident" if adv.get("ready_to_conclude") else "need_more_evidence",
+                      "hypotheses": adv["hypotheses"], "summary": adv.get("message", "")}
+        try:
+            verdict = run_checker(ev, assessment)
+        except Exception as e:
+            verdict = {"verdict": "unavailable", "reasons": [str(e)], "checker_model": ""}
+    result = game.score(job, body.choice, coach_choice)
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    result.update(player_title=titles.get(body.choice, body.choice),
+                  coach_title=titles.get(coach_choice, coach_choice) if coach_choice else None,
+                  checker=verdict, fix=knowledge.fault_guide(job.condition)["fix"],
+                  steps=job.steps)
+    job.concluded = result
+    return result
 
 
 @app.post("/api/eval")

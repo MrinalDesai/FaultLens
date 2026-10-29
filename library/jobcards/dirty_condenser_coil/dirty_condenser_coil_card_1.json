@@ -1,0 +1,22 @@
+{
+ "condition": "dirty_condenser_coil",
+ "handwriting_font": "kalam",
+ "fields": {
+  "job_no": "CF-3304",
+  "date": "26 Jun 2026",
+  "customer": "G. Nair",
+  "area": "Hadapsar",
+  "unit_model": "Coolwave CS-15F",
+  "serial_no": "K80-99736",
+  "complaint": "Poor cooling in afternoon",
+  "suction_psi": "138",
+  "compressor_amps": "9.4",
+  "supply_air_c": "16",
+  "work_done": "Outdoor coil choked with dust. Coil cleaning advised",
+  "parts_used": "None",
+  "remarks": "Customer declined coil wash",
+  "next_service": "Dec 2026",
+  "technician": "Joseph"
+ },
+ "note": "Generated job card. Fictional company and customers. These are the true contents."
+}
