@@ -13,6 +13,7 @@ Flow for one round:
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -42,6 +43,9 @@ Rules:
 - The alarm history is the unit's own protection record: a code says what the unit protected itself
   from (too hot outside, coil freezing), not which part failed, and an empty log does not rule a fault out.
 - If everything points to a healthy unit, rank "normal" first.
+- Write for a technician on site, in plain words and full sentences. Name readings in words with
+  their units ("discharge pressure 521 psi", "compressor current 9.25 A"), never field names such
+  as discharge_psig, and name faults by their titles, never by fault_id.
 - Finish by calling submit_assessment exactly once.
 """
 
@@ -204,8 +208,16 @@ def investigate(ev: Evidence) -> dict:
     trace, usage = [], {"input_tokens": 0, "output_tokens": 0}
     tools = _tools()
 
-    for _ in range(config.MAX_AGENT_TURNS):
-        resp = client().responses.create(model=config.AGENT_MODEL, input=history, tools=tools)
+    submit_only = [t for t in tools if t.get("name") == "submit_assessment"]
+    for turn in range(config.MAX_AGENT_TURNS):
+        last = turn == config.MAX_AGENT_TURNS - 1
+        if last:
+            # Out of turns: no more lookups, the model must give its best assessment now.
+            history.append({"role": "user", "content": "No more tool calls are available. Call submit_assessment "
+                            "now with your best ranking from the evidence so far; use status need_more_evidence "
+                            "if the evidence cannot separate the causes."})
+        resp = client().responses.create(model=config.AGENT_MODEL, input=history,
+                                         tools=submit_only if last else tools)
         if resp.usage:
             usage["input_tokens"] += resp.usage.input_tokens
             usage["output_tokens"] += resp.usage.output_tokens
@@ -239,15 +251,52 @@ def investigate(ev: Evidence) -> dict:
     }
 
 
+READING_WORDS = {
+    "return_air_c": "return air temperature", "supply_air_c": "supply air temperature",
+    "outdoor_air_c": "outdoor air temperature", "suction_psig": "suction pressure",
+    "discharge_psig": "discharge pressure", "compressor_amps": "compressor current",
+    "outdoor_fan_amps": "outdoor fan current", "room_sensor_c": "room sensor reading",
+    "delta_t_c": "air temperature drop across the indoor unit", "room_sensor_offset_c": "room sensor error",
+    "compressor_off_minutes": "minutes the compressor was off",
+    "compressor_spikes_over_20a": "compressor current spikes over 20 A",
+    "thermal_indoor": "indoor thermal image", "thermal_outdoor": "outdoor thermal image",
+    # field names of the evidence and the assessment, which the second check sometimes quotes
+    "evidence_for": "supporting evidence", "evidence_against": "evidence against",
+    "technician_notes": "technician's notes", "sensor_summary": "sensor log", "pattern_match": "pattern match",
+    "alarm_history": "alarm history", "images_provided": "images", "numbers_printed_on_thermal_images":
+    "thermal image readings", "need_more_evidence": "needs more evidence", "next_check_id": "next check",
+}
+
+
+def plain(text: str) -> str:
+    """Safety net for the screen: replace field names and fault ids the model let slip with words."""
+    if not isinstance(text, str):
+        return text
+    words = dict(READING_WORDS)
+    for f in knowledge.fault_ids():
+        words[f] = knowledge.fault_guide(f).get("title", f.replace("_", " ")).lower()
+    for k in sorted(words, key=len, reverse=True):
+        text = re.sub(rf"\b{re.escape(k)}\b", words[k], text, flags=re.I)
+    return text[:1].upper() + text[1:] if text else text
+
+
 def normalise(a: dict) -> dict:
-    """Clean up the model's assessment: valid fault ids only, probabilities summing to 1, sorted."""
+    """Clean up the model's assessment: valid fault ids only, probabilities summing to 1, sorted,
+    and no field names or fault ids in the text the technician reads."""
     valid = set(knowledge.fault_ids())
     hyps = [h for h in a.get("hypotheses", []) if h.get("fault_id") in valid]
     total = sum(max(float(h.get("probability", 0)), 0) for h in hyps) or 1.0
     for h in hyps:
         h["probability"] = round(max(float(h.get("probability", 0)), 0) / total, 3)
     hyps.sort(key=lambda h: h["probability"], reverse=True)
-    return {**a, "hypotheses": hyps}
+    for h in hyps:
+        h["evidence_for"] = [plain(x) for x in h.get("evidence_for", [])]
+        h["evidence_against"] = [plain(x) for x in h.get("evidence_against", [])]
+    out = {**a, "hypotheses": hyps}
+    for k in ("summary", "question"):
+        if isinstance(out.get(k), str):
+            out[k] = plain(out[k])
+    return out
 
 
 def _mock_investigate(ev: Evidence) -> dict:

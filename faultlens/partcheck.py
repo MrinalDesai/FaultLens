@@ -245,7 +245,7 @@ def _content(photo: Image.Image, part_no: int | None, complaint: str, exclude: P
             for lv in shown:
                 content += [text_part(f"SEVERITY {lv['level'].upper()}: {lv['caption']}"),
                             {"type": "input_image", "image_url": image_to_data_url(Image.open(lv["path"]), 512)}]
-                sent.append(f"{lv['level']}: {lv['caption'][:50]}")
+                sent.append(f"{lv['level']}: {lv['caption']}")
     if part_no is not None and wear.has_scale(part_no):   # already shown as a wear stage
         in_scale = {(library.LIBRARY / st["same_as"]).resolve() for st in wear.scale(part_no)["stages"] if st.get("same_as")}
         refs = [r for r in refs if r["path"].resolve() not in in_scale]
@@ -381,16 +381,27 @@ def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
         out["wear"]["known_stage"] = known["stage"]
     if known:
         out["known"]["fault_title"] = titles.get(known["fault"], "") if known.get("fault") else ""
+        part_ok = known["part_no"] == n
+        why = [] if part_ok else [f"said part #{n}, true part #{known['part_no']}"]
         if known.get("level") and out.get("severity"):
-            out["agrees_with_known"] = known["part_no"] == n and out["severity"]["level"] == known["level"]
-            out["agreement_rule"] = "right part, right severity level"
+            got = out["severity"]["level"]
+            out["agrees_with_known"] = part_ok and got == known["level"]
+            if got != known["level"]:
+                why.append(f"said {got or 'no level'}, true level {known['level']}")
+            out["agreement_rule"] = "; ".join(why) or "right part, right severity level"
         elif known.get("stage") and out["wear"]:
             # Wear photos: right part and within one stage of the true one.
-            out["agrees_with_known"] = known["part_no"] == n and abs(out["wear"]["stage"] - known["stage"]) <= 1
-            out["agreement_rule"] = "right part, within one wear stage"
+            got = out["wear"]["stage"]
+            out["agrees_with_known"] = part_ok and abs(got - known["stage"]) <= 1
+            if abs(got - known["stage"]) > 1:
+                why.append(f"said stage {got}, true stage {known['stage']}")
+            out["agreement_rule"] = "; ".join(why) or "right part, within one wear stage"
         else:
-            out["agrees_with_known"] = (known["part_no"] == n and known["condition"] == result.get("condition"))
-            out["agreement_rule"] = "right part, right condition"
+            got = result.get("condition")
+            out["agrees_with_known"] = part_ok and known["condition"] == got
+            if known["condition"] != got:
+                why.append(f"said {got}, true condition {known['condition']}")
+            out["agreement_rule"] = "; ".join(why) or "right part, right condition"
     if outline and not config.MOCK:
         img, note = _outline(photo, n)
         out["outlined"], out["outline_note"] = img, note

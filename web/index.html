@@ -87,6 +87,13 @@ details summary { cursor: pointer; color: var(--ink-soft); font-size: .9rem; }
 .btn.primary:hover { background: #24343F; }
 .btn.rec { border-color: var(--high); color: var(--high); }
 .btn.rec[aria-pressed="true"] { background: var(--high); color: #fff; }
+.reclive { min-width: 0; overflow: hidden; contain: inline-size; margin-top: 8px; border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 8px 10px; background: var(--surface); }
+.reclive canvas { display: block; width: 100%; max-width: 100%; height: 56px; }
+.recbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.recbar .hint { overflow-wrap: anywhere; }
+.recdot { width: 10px; height: 10px; border-radius: 50%; background: var(--high); flex: none; animation: recblink 1s infinite; }
+@keyframes recblink { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .recdot { animation: none; } }
 .btn:disabled { opacity: .5; cursor: progress; }
 
 .notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -385,7 +392,7 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
 #sampleBody > div { grid-template-columns: minmax(0, 1fr); }
 .sevbox, .sevlabels span { min-width: 0; }
 .sevlabels span { overflow-wrap: anywhere; }
-.meter { aspect-ratio: 1; display: grid; place-content: center; gap: 10px; text-align: center; background: #20262B; border-radius: var(--radius-s); padding: 16px; }
+.metertile { aspect-ratio: 1; display: grid; place-content: center; gap: 10px; text-align: center; background: #20262B; border-radius: var(--radius-s); padding: 16px; }
 .meterscreen { background: #B9C7A8; color: #1B2416; font-family: "Courier New", monospace; font-size: 2.6rem; font-weight: 700; padding: 12px 22px; border-radius: 6px; box-shadow: inset 0 2px 6px rgba(0,0,0,.35); }
 .meterscreen small { font-size: 1.2rem; }
 .phhidden { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 12px; border: 1px dashed var(--rule); border-radius: var(--radius-s); color: var(--ink-soft); font-size: .85rem; background: var(--ground); }
@@ -554,6 +561,11 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
           <button type="button" class="btn" id="addNote">Add</button>
         </div>
         <button type="button" class="btn rec" id="rec" aria-pressed="false">Record a voice note</button>
+        <div class="reclive" id="recLive" hidden>
+          <div class="recbar"><span class="recdot"></span><b id="recTime">0:00</b><span class="hint" id="recMic"></span></div>
+          <canvas id="recWave" height="56"></canvas>
+          <div class="hint" id="recLevel">Listening…</div>
+        </div>
         <ul class="notes" id="notes"></ul>
       </div>
 
@@ -708,7 +720,7 @@ function severityBox(band) {
 }
 
 function photoTile(p) {
-  if (p.reading) return `<figure><div class="meter"><div class="meterscreen">${p.reading.value} <small>${esc(p.reading.unit)}</small></div>
+  if (p.reading) return `<figure><div class="metertile"><div class="meterscreen">${p.reading.value} <small>${esc(p.reading.unit)}</small></div>
       <div class="hint" style="color:#C9D2D8">rated ${p.reading.rated} ${esc(p.reading.unit)} · replace below ${p.reading.limit}</div></div>
     <figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption)}<br><span class="phnote">Shown as a reading: the meter photo is of an advanced fault (18.2 uF).</span></figcaption></figure>`;
   if (p.hidden) return `<figure><div class="phhidden">${esc(p.note)}</div><figcaption>${p.part ? `<span class="pno">${p.part}</span>` : ""}${esc(p.caption || "")}</figcaption></figure>`;
@@ -851,14 +863,15 @@ function patternBlock(pm, note, heading = "Pattern match") {
 
 /* ---------- files ---------- */
 const drop = $("#drop");
-$("#media").addEventListener("change", e => { state.files = [...e.target.files]; renderFileList(); });
+$("#media").addEventListener("change", e => { state.files = [...e.target.files]; $("#libSample").value = ""; renderFileList(); });
 ["dragover", "dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("over")));
-drop.addEventListener("drop", e => { e.preventDefault(); state.files = [...e.dataTransfer.files]; renderFileList(); });
+drop.addEventListener("drop", e => { e.preventDefault(); state.files = [...e.dataTransfer.files]; $("#libSample").value = ""; renderFileList(); });
+$("#libSample").addEventListener("change", () => { if ($("#libSample").value) { state.files = []; $("#media").value = ""; renderFileList(); } });
 function guessType(f) {
   const n = f.name.toLowerCase();
   if (n.endsWith(".wav")) return "Sound";
-  if (n.endsWith(".csv")) return "Sensor log";
+  if (n.endsWith(".csv")) return n.includes("alarm") ? "Alarm history" : "Sensor log (or alarm history, checked on upload)";
   if (/\.(mp4|mov|webm)$/.test(n)) return "Video";
   if (n.includes("thermal")) return n.includes("indoor") ? "Thermal, indoor coil" : "Thermal, outdoor unit";
   return "Photo (or thermal image, checked on upload)";
@@ -880,7 +893,35 @@ $("#addNote").addEventListener("click", () => { addNote($("#noteText").value); $
 $("#noteText").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("#addNote").click(); } });
 
 /* ---------- voice: record, convert to 16 kHz mono WAV, transcribe ---------- */
-let recorder = null, chunks = [];
+let recorder = null, chunks = [], recLive = null;
+function startLive(stream) {
+  const box = $("#recLive"), cv = $("#recWave"), g = cv.getContext("2d");
+  const track = stream.getAudioTracks()[0], st = track.getSettings ? track.getSettings() : {};
+  $("#recMic").textContent = [track.label || "Microphone", st.sampleRate ? `${st.sampleRate / 1000} kHz` : "",
+    st.channelCount ? (st.channelCount === 1 ? "mono" : `${st.channelCount} channels`) : "",
+    st.noiseSuppression ? "noise suppression on" : ""].filter(Boolean).join(" · ");
+  box.hidden = false;
+  const ac = new AudioContext(), an = ac.createAnalyser(); an.fftSize = 2048;
+  ac.createMediaStreamSource(stream).connect(an);
+  const data = new Float32Array(an.fftSize), t0 = Date.now(), color = getComputedStyle(document.body).getPropertyValue("--high") || "#c33";
+  let raf, quiet = 0;
+  const draw = () => {
+    const wpx = Math.round(box.clientWidth - 20) * devicePixelRatio;
+    if (cv.width !== wpx) { cv.width = wpx; cv.height = 56 * devicePixelRatio; }
+    an.getFloatTimeDomainData(data);
+    g.clearRect(0, 0, cv.width, cv.height); g.lineWidth = 2 * devicePixelRatio; g.strokeStyle = color; g.beginPath();
+    const mid = cv.height / 2;
+    for (let i = 0; i < data.length; i += 4) { const x = i / data.length * cv.width, y = mid - Math.max(-1, Math.min(1, data[i] * 2)) * (mid - 2); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+    const rms = Math.sqrt(data.reduce((a, v) => a + v * v, 0) / data.length);
+    quiet = rms < 0.01 ? quiet + 1 : 0;
+    $("#recLevel").textContent = rms < 0.01 ? (quiet > 90 ? "Very quiet: move closer or check the microphone." : "Listening…") : rms < 0.05 ? "Hearing you (quiet)" : "Hearing you";
+    const s = Math.floor((Date.now() - t0) / 1000); $("#recTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    raf = requestAnimationFrame(draw);
+  };
+  draw();
+  recLive = () => { cancelAnimationFrame(raf); ac.close(); box.hidden = true; recLive = null; };
+}
 $("#rec").addEventListener("click", async () => {
   const btn = $("#rec");
   if (recorder) { recorder.stop(); return; }
@@ -889,20 +930,21 @@ $("#rec").addEventListener("click", async () => {
     recorder = new MediaRecorder(stream); chunks = [];
     recorder.ondataavailable = e => chunks.push(e.data);
     recorder.onstop = async () => {
+      if (recLive) recLive();
       stream.getTracks().forEach(t => t.stop());
       recorder = null; btn.setAttribute("aria-pressed", "false"); btn.textContent = "Transcribing…"; btn.disabled = true;
       setStage("voice", "running");
       try {
-        const wav = await toWav16k(new Blob(chunks));
+        const tv = Date.now(), wav = await toWav16k(new Blob(chunks));
         const fd = new FormData(); fd.append("audio", wav, "note.wav");
         const r = await fetch("/api/transcribe", { method: "POST", body: fd });
         const body = await r.json();
         if (!r.ok) throw new Error(body.detail);
-        addNote(body.text); setStage("voice", "done");
+        addNote(body.text); setStage("voice", "done", ((Date.now() - tv) / 1000).toFixed(1));
       } catch (err) { showError("Voice note not transcribed: " + err.message + " Type the note instead."); setStage("voice", ""); }
       btn.disabled = false; btn.textContent = "Record a voice note";
     };
-    recorder.start(); btn.setAttribute("aria-pressed", "true"); btn.textContent = "Stop and transcribe";
+    recorder.start(); startLive(stream); btn.setAttribute("aria-pressed", "true"); btn.textContent = "Stop and transcribe";
   } catch { showError("Microphone not available. Allow microphone access, or type the note."); }
 });
 async function toWav16k(blob) {

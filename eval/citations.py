@@ -22,7 +22,7 @@ from faultlens import alarms as alarm_mod
 from faultlens import knowledge, sensors
 
 ABSENT_BEFORE = r"\b(no|missing|without|lack of|absent|unavailable|not provided|not available|not shown|not given|cannot see|can't see)\b(\W+\w+){0,4}?\W+"
-ABSENT_AFTER = r"(\W+\w+){0,4}?\W+(was|were|is|are)?\s*(not provided|not available|not shown|not given|missing|unavailable|absent|not measured|not logged)\b"
+ABSENT_AFTER = r"(\W+\w+){0,4}?\W+(was|were|is|are)?\s*(not provided|not available|not shown|not given|missing|unavailable|absent|not measured|not logged|not recorded|not included)\b"
 
 
 def _says_absent(t: str, word: str) -> bool:
@@ -33,7 +33,7 @@ NUMBER = re.compile(r"(?<![A-Za-z_#])-?\d+(?:\.\d+)?")
 CODE = re.compile(r"\b([EPFL]\d)\b")
 
 CHANNEL_WORDS = {
-    "supply_air_c": ["supply air", "supply_air", "louvre", "outlet air", "air leaving"],
+    "supply_air_c": ["supply air", "supply_air", "outlet air", "air leaving"],
     "return_air_c": ["return air", "return_air", "intake air"],
     "outdoor_air_c": ["outdoor air", "outdoor_air", "ambient", "outside air"],
     "suction_psig": ["suction"],

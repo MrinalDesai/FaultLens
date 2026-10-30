@@ -4,14 +4,14 @@ Known from Meta's docs: recordings go to POST {base}/asr/transcribe as a
 multipart upload, Bearer auth, mono 16-bit PCM WAV at 16 or 24 kHz only,
 up to 32 MB and 10 minutes.
 
-NOT yet confirmed: the exact form field names and the response JSON shape.
-The guesses below ("file", "model", response "text" or "turns") must be checked
-against the API reference on day one. Typed notes always work as a fallback.
+Request: a "request" part (JSON: mode, model, audioEncoding) and an "audio" part (the WAV).
+Response: {"transcript": ..., "turns": [...]}. Typed notes always work as a fallback.
 """
 
 from __future__ import annotations
 
 import io
+import json
 import wave
 
 import requests
@@ -42,16 +42,19 @@ def transcribe(data: bytes) -> str:
     if problem:
         raise ValueError(problem + " Convert with: ffmpeg -i in.m4a -ac 1 -ar 16000 out.wav")
 
+    # Format from Meta's speech-to-text docs (dev.meta.ai/docs/speech-to-text): two multipart parts,
+    # "request" (JSON settings) and "audio" (the WAV file); the answer's "transcript" is the full text.
+    settings = json.dumps({"mode": "PUSH_TO_TALK", "model": config.VOICE_MODEL, "audioEncoding": "WAV"})
     resp = requests.post(
         f"{config.META_BASE_URL}/asr/transcribe",
         headers={"Authorization": f"Bearer {config.MODEL_API_KEY}"},
-        files={"file": ("note.wav", data, "audio/wav")},  # field name to verify
-        data={"model": config.VOICE_MODEL},  # field name to verify
+        files={"request": (None, settings, "application/json"),
+               "audio": ("note.wav", data, "audio/wav")},
         timeout=120,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"{resp.status_code} from Muse Voice Transcribe: {resp.text[:300]}")
     body = resp.json()
-    if isinstance(body.get("text"), str):
-        return body["text"]
-    turns = body.get("turns") or body.get("segments") or []
-    return " ".join(t.get("text", "") for t in turns).strip()
+    if isinstance(body.get("transcript"), str) and body["transcript"].strip():
+        return body["transcript"].strip()
+    return " ".join(t.get("transcript", "") for t in body.get("turns") or []).strip()

@@ -33,6 +33,9 @@ Reject if any of these are true:
 - The status is "confident" but a key reading needed to confirm the cause is missing.
 - The pattern match's signals disagree about the top cause and the assessment does not explain why.
 
+Write each reason as one short plain sentence a technician can read: name readings and causes in
+words, never field names such as evidence_for or sensor_summary, and no values like null or false.
+
 Reply with JSON only:
 {"verdict": "accept" or "reject", "reasons": ["..."], "missing_evidence": "one specific observation, or empty"}
 """
@@ -102,8 +105,9 @@ def _parse(text: str) -> dict:
     except json.JSONDecodeError:
         return {"verdict": "reject", "reasons": ["Checker reply was not valid JSON."], "missing_evidence": ""}
     data["verdict"] = "accept" if str(data.get("verdict", "")).lower() == "accept" else "reject"
-    data.setdefault("reasons", [])
-    data.setdefault("missing_evidence", "")
+    from .agent import plain
+    data["reasons"] = [plain(str(r)) for r in data.get("reasons") or []]
+    data["missing_evidence"] = plain(str(data.get("missing_evidence") or ""))
     return data
 
 
