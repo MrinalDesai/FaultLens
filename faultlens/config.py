@@ -49,3 +49,9 @@ KEYFRAMES_PER_VIDEO = int(os.getenv("KEYFRAMES_PER_VIDEO", "4"))
 
 # Set by `python -m faultlens.checker` once a sound format is proven to reach the checker model.
 CHECKER_AUDIO_FORMAT = os.getenv("CHECKER_AUDIO_FORMAT", "").strip()
+
+# Public demo (the Modal deployment). Paid model calls are limited per visitor and per day, and the
+# full test-set run is switched off (the saved run is shown instead).
+PUBLIC_DEMO = os.getenv("PUBLIC_DEMO", "0") == "1"
+VISITOR_CALLS_PER_HOUR = int(os.getenv("VISITOR_CALLS_PER_HOUR", "60"))
+DAILY_CALLS = int(os.getenv("DAILY_CALLS", "800"))

@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import uvicorn  # noqa: E402
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile  # noqa: E402
-from fastapi.responses import FileResponse, Response  # noqa: E402
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from PIL import Image  # noqa: E402
@@ -109,6 +109,49 @@ def _route_upload(ev: Evidence, name: str, ctype: str, data: bytes, log: list) -
 
 # ------------------------------------------------------------------ pages and info
 
+# ----------------------------------------------------------------------------- public demo limits
+# Every request that can call a paid model counts as one call. A visitor (by IP address) gets
+# VISITOR_CALLS_PER_HOUR; the whole site gets DAILY_CALLS a day. Off unless PUBLIC_DEMO=1.
+PAID_PATHS = {"/api/transcribe", "/api/investigate", "/api/partcheck", "/api/anomaly/explain", "/api/jobcard/read"}
+PAID_GAME = ("/advise", "/conclude", "/action")   # /api/game/{job}/...
+
+
+def _is_paid(path: str) -> bool:
+    return path in PAID_PATHS or (path.startswith("/api/game/") and path.endswith(PAID_GAME))
+_hits: dict[str, list[float]] = {}
+_day = {"date": "", "count": 0}
+
+
+def _visitor(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+
+
+@app.middleware("http")
+async def demo_limits(request: Request, call_next):
+    if not config.PUBLIC_DEMO or request.method != "POST" or not _is_paid(request.url.path):
+        return await call_next(request)
+    now, today = time.time(), time.strftime("%Y-%m-%d", time.gmtime())
+    if _day["date"] != today:
+        _day.update(date=today, count=0)
+    if _day["count"] >= config.DAILY_CALLS:
+        return JSONResponse({"detail": "The public demo has reached today's limit of model calls. "
+                                       "It resets at midnight UTC. The code runs locally with your own key."}, 429)
+    who = _visitor(request)
+    recent = [t for t in _hits.get(who, []) if now - t < 3600]
+    if len(recent) >= config.VISITOR_CALLS_PER_HOUR:
+        wait = int(3600 - (now - recent[0])) // 60 + 1
+        return JSONResponse({"detail": f"You have used this hour's {config.VISITOR_CALLS_PER_HOUR} model calls "
+                                       f"on the public demo. Try again in about {wait} minutes."}, 429)
+    recent.append(now)
+    _hits[who] = recent
+    _day["count"] += 1
+    if len(_hits) > 5000:                     # forget visitors with nothing in the last hour
+        for k in [k for k, v in _hits.items() if not v or now - v[-1] > 3600]:
+            _hits.pop(k, None)
+    return await call_next(request)
+
+
 @app.get("/")
 def index():
     return FileResponse(INDEX)
@@ -121,6 +164,7 @@ def profile():
         "equipment": p["equipment"],
         "faults": knowledge.fault_menu(),
         "mock": config.MOCK,
+        "public_demo": config.PUBLIC_DEMO,
         "pattern_model": pattern.get_model() is not None,
         "models": {"agent": config.AGENT_MODEL, "sam": config.SAM_MODEL, "voice": config.VOICE_MODEL,
                    "checker": config.CHECKER_MODEL or config.AGENT_MODEL},
@@ -526,13 +570,29 @@ def game_conclude(job_id: str, body: Conclude):
     return result
 
 
+EVAL_SAVED = ROOT / "models" / "eval_report.json"
+
+
 @app.post("/api/eval")
 def run_eval(limit: int = 12, modes: str = "rules,agent_sensors,agent_full"):
+    if config.PUBLIC_DEMO:
+        raise HTTPException(403, "The full test-set run is switched off on the public demo; the saved run is shown.")
     from eval.run_eval import evaluate, pick_cases
 
     files = pick_cases(limit)
     results, report = evaluate(files, modes.split(","))
-    return {"report": report, "results": results}
+    out = {"report": report, "results": results, "cases": len(files),
+           "run_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())}
+    if not config.MOCK:
+        EVAL_SAVED.write_text(json.dumps(out, indent=1))
+    return out
+
+
+@app.get("/api/eval-report")
+def eval_report():
+    if not EVAL_SAVED.exists():
+        raise HTTPException(404, "No saved test-set run yet.")
+    return json.loads(EVAL_SAVED.read_text())
 
 
 if __name__ == "__main__":

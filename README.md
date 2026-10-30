@@ -195,7 +195,25 @@ The reference library is included. To rebuild or enlarge it: `python -m faultlen
 
 Offline mode with canned agent answers (the pattern model still runs): set `FAULTLENS_MOCK=1` in `.env`.
 
+## Public demo on Modal
+
+`modal_app.py` deploys the app as a public web page (`pip install modal`, `modal setup`, then `modal deploy modal_app.py`). Your `.env` is sent to Modal as a secret and is never copied into the image; the pattern model is trained inside the image. On the public demo (`PUBLIC_DEMO=1`):
+
+- every request that can call a paid model counts as one call; each visitor gets 60 an hour (`VISITOR_CALLS_PER_HOUR`) and the site gets 800 a day (`DAILY_CALLS`), after which the page says so;
+- the full test-set run is switched off and the last saved run with live models is shown instead;
+- one container serves everyone, so a job's state and the limits are kept in one place.
+
 ## Evaluation
+
+**Full investigation, 14 cases** (one easy and one hard per condition; in the hard half the fault is mild and one key sensor is missing), live models, `python -m eval.run_eval --limit 14`:
+
+| Method | Correct | Easy | Hard | Correct when confident | Evidence correctly cited |
+|---|---|---|---|---|---|
+| Sensor rules only (baseline) | 50% | 71% | 29% | 42% | – |
+| FaultLens, sensors only | 79% | 100% | 57% | 80% | 99% |
+| FaultLens, sensors + note + alarm history + second check | **93%** | 100% | 86% | **100%** | 99% |
+
+The one miss was a mild refrigerant leak with a key sensor missing, called healthy; FaultLens said it was not sure and asked for more evidence rather than claiming it. Every time it said it was confident, it was right. Results vary a little between runs (an earlier 14-case run scored 100% on the full method). In one earlier run the citation check also caught the model adding a stray, unrelated sentence to its evidence; the diagnosis was still right.
 
 **How well conclusions cite their evidence.** Every piece of evidence FaultLens gives, for and against each cause, is checked automatically (`eval/citations.py`): every number it quotes must appear in what it was given, it must not quote a sensor channel that was held back, describe a picture it was not shown, or name an alarm code that is not in the log. Saying that something is missing counts as correct. The test set reports the share of evidence that passes, next to accuracy and how often FaultLens asked for more evidence.
 

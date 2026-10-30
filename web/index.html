@@ -653,6 +653,10 @@ fetch("/api/profile").then(r => r.json()).then(p => {
   $("#unit").textContent = p.equipment;
   $("#mode").hidden = !p.mock;
   $("#checkerModel").textContent = p.models.checker;
+  if (p.public_demo) {   // public demo: the test set is shown from the saved run, not re-run
+    $("#runEval").closest(".row").hidden = true;
+    $("#runEval").closest(".row").insertAdjacentHTML("afterend", `<p class="hint">On the public demo the full test-set run is switched off to protect the model credits. Below is the saved run with live models; run it yourself with <code>python -m eval.run_eval</code>.</p>`);
+  }
   p.faults.forEach(f => state.titles[f.fault_id] = f.title);
   initPlay();
   return fetch("/api/library").then(r => r.json());
@@ -1160,10 +1164,19 @@ async function loadPartcheck() {
     <details><summary>Every photo</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Photo</th><th>Kind</th><th>Part</th><th>Condition</th><th>Wear stage</th><th>Severity level</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 
+async function loadSavedEval() {
+  const r = await fetch("/api/eval-report");
+  if (!r.ok) return;
+  const b = await r.json();
+  renderEval(b);
+  $("#evalOut").insertAdjacentHTML("afterbegin", `<p class="hint">Saved run: ${b.cases || ""} cases, ${esc(b.run_at || "")}, live models.</p>`);
+}
+
 async function loadReport() {
   if (reportLoaded) return;
   loadVision();
   loadPartcheck();
+  loadSavedEval();
   const r = await fetch("/api/pattern-report");
   const body = await r.json();
   if (!r.ok) { $("#patternReport").innerHTML = `<h2>Pattern model</h2><p class="hint">${esc(body.detail)}</p>`; return; }

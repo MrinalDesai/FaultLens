@@ -1,0 +1,773 @@
+{
+ "report": {
+  "mock": false,
+  "model": "muse-spark-1.3",
+  "by_mode": {
+   "rules": {
+    "all": {
+     "cases": 14,
+     "top1_accuracy": 0.5,
+     "asked_for_more_evidence": 0.143,
+     "accuracy_when_confident": 0.417
+    },
+    "easy": {
+     "cases": 7,
+     "top1_accuracy": 0.714,
+     "asked_for_more_evidence": 0.143,
+     "accuracy_when_confident": 0.667
+    },
+    "hard": {
+     "cases": 7,
+     "top1_accuracy": 0.286,
+     "asked_for_more_evidence": 0.143,
+     "accuracy_when_confident": 0.167
+    }
+   },
+   "agent_sensors": {
+    "all": {
+     "cases": 14,
+     "top1_accuracy": 0.786,
+     "asked_for_more_evidence": 0.643,
+     "accuracy_when_confident": 0.8,
+     "evidence": {
+      "evidence_items": 300,
+      "evidence_grounded": 0.99,
+      "assessments_fully_grounded": 0.857
+     }
+    },
+    "easy": {
+     "cases": 7,
+     "top1_accuracy": 1.0,
+     "asked_for_more_evidence": 0.571,
+     "accuracy_when_confident": 1.0,
+     "evidence": {
+      "evidence_items": 131,
+      "evidence_grounded": 0.992,
+      "assessments_fully_grounded": 0.857
+     }
+    },
+    "hard": {
+     "cases": 7,
+     "top1_accuracy": 0.571,
+     "asked_for_more_evidence": 0.714,
+     "accuracy_when_confident": 0.5,
+     "evidence": {
+      "evidence_items": 169,
+      "evidence_grounded": 0.988,
+      "assessments_fully_grounded": 0.857
+     }
+    }
+   },
+   "agent_full": {
+    "all": {
+     "cases": 14,
+     "top1_accuracy": 0.929,
+     "asked_for_more_evidence": 0.5,
+     "accuracy_when_confident": 1.0,
+     "evidence": {
+      "evidence_items": 306,
+      "evidence_grounded": 0.987,
+      "assessments_fully_grounded": 0.714
+     }
+    },
+    "easy": {
+     "cases": 7,
+     "top1_accuracy": 1.0,
+     "asked_for_more_evidence": 0.143,
+     "accuracy_when_confident": 1.0,
+     "evidence": {
+      "evidence_items": 140,
+      "evidence_grounded": 0.986,
+      "assessments_fully_grounded": 0.714
+     }
+    },
+    "hard": {
+     "cases": 7,
+     "top1_accuracy": 0.857,
+     "asked_for_more_evidence": 0.857,
+     "accuracy_when_confident": 1.0,
+     "evidence": {
+      "evidence_items": 166,
+      "evidence_grounded": 0.988,
+      "assessments_fully_grounded": 0.714
+     }
+    }
+   }
+  }
+ },
+ "results": [
+  {
+   "case": "clogged_air_filter_0",
+   "label": "clogged_air_filter",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "clogged_air_filter",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "clogged_air_filter_0",
+   "label": "clogged_air_filter",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "clogged_air_filter",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 17615,
+   "output_tokens": 5317,
+   "citations": {
+    "items": 20,
+    "grounded": 20,
+    "problems": []
+   }
+  },
+  {
+   "case": "clogged_air_filter_0",
+   "label": "clogged_air_filter",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "clogged_air_filter",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 17991,
+   "output_tokens": 4714,
+   "citations": {
+    "items": 20,
+    "grounded": 19,
+    "problems": [
+     {
+      "cause": "clogged_air_filter",
+      "evidence": "No important contradiction. Outdoor air temperature 31.08 C is no fault found, and outdoor fan current 0.47 A is no fault found, so there is no sign of outdoor heat or fan problems masking the picture",
+      "problems": [
+       "describes a photo it was not shown"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "clogged_air_filter_1",
+   "label": "clogged_air_filter",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "clogged_air_filter_1",
+   "label": "clogged_air_filter",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "normal",
+   "correct": false,
+   "status": "need_more_evidence",
+   "input_tokens": 25917,
+   "output_tokens": 7112,
+   "citations": {
+    "items": 27,
+    "grounded": 27,
+    "problems": []
+   }
+  },
+  {
+   "case": "clogged_air_filter_1",
+   "label": "clogged_air_filter",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "clogged_air_filter",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 11801,
+   "output_tokens": 3756,
+   "citations": {
+    "items": 14,
+    "grounded": 14,
+    "problems": []
+   }
+  },
+  {
+   "case": "condenser_fan_failure_0",
+   "label": "condenser_fan_failure",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "condenser_fan_failure_0",
+   "label": "condenser_fan_failure",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 12649,
+   "output_tokens": 3353,
+   "citations": {
+    "items": 20,
+    "grounded": 20,
+    "problems": []
+   }
+  },
+  {
+   "case": "condenser_fan_failure_0",
+   "label": "condenser_fan_failure",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 19466,
+   "output_tokens": 6014,
+   "citations": {
+    "items": 21,
+    "grounded": 21,
+    "problems": []
+   }
+  },
+  {
+   "case": "condenser_fan_failure_1",
+   "label": "condenser_fan_failure",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "condenser_fan_failure_1",
+   "label": "condenser_fan_failure",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 17926,
+   "output_tokens": 5169,
+   "citations": {
+    "items": 22,
+    "grounded": 22,
+    "problems": []
+   }
+  },
+  {
+   "case": "condenser_fan_failure_1",
+   "label": "condenser_fan_failure",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "condenser_fan_failure",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 19058,
+   "output_tokens": 4409,
+   "citations": {
+    "items": 21,
+    "grounded": 21,
+    "problems": []
+   }
+  },
+  {
+   "case": "dirty_condenser_coil_0",
+   "label": "dirty_condenser_coil",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "dirty_condenser_coil_0",
+   "label": "dirty_condenser_coil",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "dirty_condenser_coil",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 19709,
+   "output_tokens": 5481,
+   "citations": {
+    "items": 14,
+    "grounded": 14,
+    "problems": []
+   }
+  },
+  {
+   "case": "dirty_condenser_coil_0",
+   "label": "dirty_condenser_coil",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "dirty_condenser_coil",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 20016,
+   "output_tokens": 4500,
+   "citations": {
+    "items": 21,
+    "grounded": 21,
+    "problems": []
+   }
+  },
+  {
+   "case": "dirty_condenser_coil_1",
+   "label": "dirty_condenser_coil",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "dirty_condenser_coil_1",
+   "label": "dirty_condenser_coil",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "dirty_condenser_coil",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 24718,
+   "output_tokens": 5061,
+   "citations": {
+    "items": 19,
+    "grounded": 19,
+    "problems": []
+   }
+  },
+  {
+   "case": "dirty_condenser_coil_1",
+   "label": "dirty_condenser_coil",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "dirty_condenser_coil",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 13119,
+   "output_tokens": 4500,
+   "citations": {
+    "items": 38,
+    "grounded": 37,
+    "problems": [
+     {
+      "cause": "clogged_air_filter",
+      "evidence": "Alarm log has 1 time L0 filter cleaning reminder on 2026-10-26, but the log note states this is a timer every 250 hours, not a fault",
+      "problems": [
+       "number 250 not in the evidence"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "failed_compressor_capacitor_0",
+   "label": "failed_compressor_capacitor",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "failed_compressor_capacitor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "failed_compressor_capacitor_0",
+   "label": "failed_compressor_capacitor",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "failed_compressor_capacitor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 12775,
+   "output_tokens": 3494,
+   "citations": {
+    "items": 14,
+    "grounded": 14,
+    "problems": []
+   }
+  },
+  {
+   "case": "failed_compressor_capacitor_0",
+   "label": "failed_compressor_capacitor",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "failed_compressor_capacitor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 18089,
+   "output_tokens": 4490,
+   "citations": {
+    "items": 18,
+    "grounded": 18,
+    "problems": []
+   }
+  },
+  {
+   "case": "failed_compressor_capacitor_1",
+   "label": "failed_compressor_capacitor",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "failed_compressor_capacitor_1",
+   "label": "failed_compressor_capacitor",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "failed_compressor_capacitor",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 20710,
+   "output_tokens": 8824,
+   "citations": {
+    "items": 33,
+    "grounded": 31,
+    "problems": [
+     {
+      "cause": "failed_compressor_capacitor",
+      "evidence": "Pressures are not fully equal, with about 82 psi between discharge pressure 305.94 psi and suction pressure 223.44 psi.",
+      "problems": [
+       "number 82 not in the evidence"
+      ]
+     },
+     {
+      "cause": "dirty_condenser_coil",
+      "evidence": "Discharge pressure 305.94 psi is LOW compared with no fault found 320 to 430 psi, which directly contradicts the guide expectation of high discharge pressure and high compressor current for this fault",
+      "problems": [
+       "quotes compressor_amps, which was held back"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "failed_compressor_capacitor_1",
+   "label": "failed_compressor_capacitor",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "failed_compressor_capacitor",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 20616,
+   "output_tokens": 5605,
+   "citations": {
+    "items": 26,
+    "grounded": 25,
+    "problems": [
+     {
+      "cause": "failed_compressor_capacitor",
+      "evidence": "Suction pressure 223.44 psi and discharge pressure 305.94 psi are still about 82 psi apart rather than fully equal",
+      "problems": [
+       "number 82 not in the evidence"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "faulty_room_thermistor_0",
+   "label": "faulty_room_thermistor",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "faulty_room_thermistor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "faulty_room_thermistor_0",
+   "label": "faulty_room_thermistor",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "faulty_room_thermistor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 17375,
+   "output_tokens": 5183,
+   "citations": {
+    "items": 14,
+    "grounded": 13,
+    "problems": [
+     {
+      "cause": "faulty_room_thermistor",
+      "evidence": "Discharge pressure 355.64 psi is about 68 psi above suction pressure 287.51 psi, not perfectly equal as the guide describes for an off unit, likely due to sensor drift or equalization at outdoor air 3",
+      "problems": [
+       "number 68 not in the evidence"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "faulty_room_thermistor_0",
+   "label": "faulty_room_thermistor",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "faulty_room_thermistor",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 13559,
+   "output_tokens": 4286,
+   "citations": {
+    "items": 21,
+    "grounded": 21,
+    "problems": []
+   }
+  },
+  {
+   "case": "faulty_room_thermistor_1",
+   "label": "faulty_room_thermistor",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "low_refrigerant",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "faulty_room_thermistor_1",
+   "label": "faulty_room_thermistor",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "condenser_fan_failure",
+   "correct": false,
+   "status": "need_more_evidence",
+   "input_tokens": 26626,
+   "output_tokens": 6526,
+   "citations": {
+    "items": 24,
+    "grounded": 24,
+    "problems": []
+   }
+  },
+  {
+   "case": "faulty_room_thermistor_1",
+   "label": "faulty_room_thermistor",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "faulty_room_thermistor",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 14299,
+   "output_tokens": 8652,
+   "citations": {
+    "items": 33,
+    "grounded": 33,
+    "problems": []
+   }
+  },
+  {
+   "case": "low_refrigerant_0",
+   "label": "low_refrigerant",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "clogged_air_filter",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "low_refrigerant_0",
+   "label": "low_refrigerant",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "low_refrigerant",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 19422,
+   "output_tokens": 6021,
+   "citations": {
+    "items": 28,
+    "grounded": 28,
+    "problems": []
+   }
+  },
+  {
+   "case": "low_refrigerant_0",
+   "label": "low_refrigerant",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "low_refrigerant",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 13048,
+   "output_tokens": 3924,
+   "citations": {
+    "items": 15,
+    "grounded": 14,
+    "problems": [
+     {
+      "cause": "clogged_air_filter",
+      "evidence": "Filter cleaning reminder L0 is a 250-hour timer, not a fault, and there is no report of weak airflow, dust mat, or coil ice.",
+      "problems": [
+       "number 250 not in the evidence"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "case": "low_refrigerant_1",
+   "label": "low_refrigerant",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "low_refrigerant_1",
+   "label": "low_refrigerant",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "normal",
+   "correct": false,
+   "status": "confident",
+   "input_tokens": 11217,
+   "output_tokens": 4036,
+   "citations": {
+    "items": 22,
+    "grounded": 22,
+    "problems": []
+   }
+  },
+  {
+   "case": "low_refrigerant_1",
+   "label": "low_refrigerant",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "normal",
+   "correct": false,
+   "status": "need_more_evidence",
+   "input_tokens": 24827,
+   "output_tokens": 6202,
+   "citations": {
+    "items": 15,
+    "grounded": 15,
+    "problems": []
+   }
+  },
+  {
+   "case": "normal_0",
+   "label": "normal",
+   "hard": false,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "normal_0",
+   "label": "normal",
+   "hard": false,
+   "mode": "agent_sensors",
+   "predicted": "normal",
+   "correct": true,
+   "status": "need_more_evidence",
+   "input_tokens": 18886,
+   "output_tokens": 5055,
+   "citations": {
+    "items": 21,
+    "grounded": 21,
+    "problems": []
+   }
+  },
+  {
+   "case": "normal_0",
+   "label": "normal",
+   "hard": false,
+   "mode": "agent_full",
+   "predicted": "normal",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 12187,
+   "output_tokens": 3715,
+   "citations": {
+    "items": 24,
+    "grounded": 24,
+    "problems": []
+   }
+  },
+  {
+   "case": "normal_1",
+   "label": "normal",
+   "hard": true,
+   "mode": "rules",
+   "predicted": "normal",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 0,
+   "output_tokens": 0,
+   "citations": null
+  },
+  {
+   "case": "normal_1",
+   "label": "normal",
+   "hard": true,
+   "mode": "agent_sensors",
+   "predicted": "normal",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 15849,
+   "output_tokens": 4227,
+   "citations": {
+    "items": 22,
+    "grounded": 22,
+    "problems": []
+   }
+  },
+  {
+   "case": "normal_1",
+   "label": "normal",
+   "hard": true,
+   "mode": "agent_full",
+   "predicted": "normal",
+   "correct": true,
+   "status": "confident",
+   "input_tokens": 19406,
+   "output_tokens": 7012,
+   "citations": {
+    "items": 19,
+    "grounded": 19,
+    "problems": []
+   }
+  }
+ ],
+ "cases": 14,
+ "run_at": "2026-10-30 12:26 UTC"
+}

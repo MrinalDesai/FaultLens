@@ -65,8 +65,15 @@ def main() -> None:
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--modes", default="rules,agent_sensors,agent_full")
     args = p.parse_args()
-    _, report = evaluate(pick_cases(args.limit), args.modes.split(","), verbose=True)
+    files = pick_cases(args.limit)
+    results, report = evaluate(files, args.modes.split(","), verbose=True)
     print(json.dumps(report, indent=1))
+    if not config.MOCK:
+        # The same file the app shows under "How it was tested" (and the public demo shows instead of re-running).
+        saved = ROOT / "models" / "eval_report.json"
+        saved.write_text(json.dumps({"report": report, "results": results, "cases": len(files),
+                                     "run_at": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())}, indent=1))
+        print(f"Saved {saved.relative_to(ROOT)}")
 
 
 def evaluate(files: list[Path], modes: list[str], verbose: bool = False) -> tuple[list[dict], dict]:

@@ -247,6 +247,8 @@ def new_job(condition: str | None = None, severity: float | None = None, seed: i
     job.variant = job.results.pop("_variant", "")
     job.sensor_rows = sensor_rows
     JOBS[job.id] = job
+    while len(JOBS) > 300:                 # a public server keeps only the most recent jobs in memory
+        JOBS.pop(next(iter(JOBS)))
     return job
 
 
