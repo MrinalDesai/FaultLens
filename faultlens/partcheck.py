@@ -271,12 +271,15 @@ def _outline(photo: Image.Image, part_no: int) -> tuple[Image.Image | None, str]
         return None, f"SAM 3.1 unavailable ({e})"
     if not dets:
         return None, f"SAM 3.1 did not find '{phrase}' in the photo"
-    d = max(dets, key=lambda x: (x["x2"] - x["x1"]) * (x["y2"] - x["y1"]))
+    # SAM may return a part in pieces (each blade of a fan): join them into one outline.
     out = photo.convert("RGB").copy()
-    sx, sy = out.width / (d.get("w") or out.width), out.height / (d.get("h") or out.height)
-    ImageDraw.Draw(out).rectangle((d["x1"] * sx, d["y1"] * sy, d["x2"] * sx, d["y2"] * sy),
-                                  outline="#C8372D", width=max(4, out.width // 150))
-    return out, f"Outlined by SAM 3.1 ('{phrase}')"
+    boxes = []
+    for d in dets:
+        sx, sy = out.width / (d.get("w") or out.width), out.height / (d.get("h") or out.height)
+        boxes.append((d["x1"] * sx, d["y1"] * sy, d["x2"] * sx, d["y2"] * sy))
+    box = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    ImageDraw.Draw(out).rectangle(box, outline="#C8372D", width=max(4, out.width // 150))
+    return out, f"Outlined by SAM 3.1 ('{phrase}'{', ' + str(len(dets)) + ' pieces joined' if len(dets) > 1 else ''})"
 
 
 def _mock(known: dict | None) -> dict:
@@ -364,6 +367,16 @@ def check(photo: Image.Image, part_no: int | None = None, complaint: str = "",
                            "known_level": known.get("level") if known else None}
     else:
         out["severity"] = None
+    if out["wear"]:
+        # Early wear is not a fault, but it still has a preventive action: the wear table's action wins
+        # over "no action", so the tags never say "fine" next to "schedule it within weeks".
+        wa = out["wear"]["action"]
+        if wa in ("plan", "soon") and result.get("action") in ("no_action", None):
+            out["action"], out["action_text"] = "preventive", out["wear"]["action_text"]
+        elif wa == "now" and result.get("action") in ("no_action", "check_further", None):
+            out["action"], out["action_text"] = "now", out["wear"]["action_text"]
+    if out.get("role") in ("not_related", "healthy"):
+        out["fault_titles"] = [t for t in out["fault_titles"] if t != _fault_titles().get("normal")]
     if out["wear"] and known and known.get("stage"):
         out["wear"]["known_stage"] = known["stage"]
     if known:

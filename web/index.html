@@ -590,6 +590,10 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
       <h2>Pattern model</h2>
       <p class="hint">Loading…</p>
     </div>
+    <div class="panel evalgrid" id="partcheckReport" style="margin-top:20px">
+      <h2>Check a part on library photos</h2>
+      <p class="hint">Loading…</p>
+    </div>
     <div class="panel evalgrid" id="visionReport" style="margin-top:20px">
       <h2>Muse Spark reading the images</h2>
       <p class="hint">Loading…</p>
@@ -1096,9 +1100,28 @@ async function loadVision() {
 }
 
 let reportLoaded = false;
+async function loadPartcheck() {
+  const r = await fetch("/api/partcheck-report");
+  const b = await r.json();
+  if (!r.ok) { $("#partcheckReport").innerHTML = `<h2>Check a part on library photos</h2><p class="hint">${esc(b.detail)}</p>`; return; }
+  const f = x => x && x.of ? `${x.right} of ${x.of}` : "–";
+  const rows = b.rows.filter(x => !x.error).map(x => `<tr><td>${esc(x.photo.split("/").slice(-2).join("/"))}</td><td>${esc(x.kind)}</td>
+    <td class="${x.part_right ? "right" : "wrong"}">#${x.part_got}</td><td class="${x.condition_right ? "right" : "wrong"}">${esc(x.condition_got || "")}</td>
+    <td>${x.stage_expected ? `<span class="${x.stage_within_one ? "right" : "wrong"}">${x.stage_got ?? "–"} (true ${x.stage_expected})</span>` : ""}</td>
+    <td>${x.level_expected ? `<span class="${x.level_right ? "right" : "wrong"}">${esc(x.level_got || "none")} (true ${esc(x.level_expected)})</span>` : ""}</td>
+    <td class="num">${x.seconds}s</td></tr>`).join("");
+  $("#partcheckReport").innerHTML = `<div><h2>Check a part on library photos</h2>
+    <p class="hint">${esc(b.note)} ${b.photos} photos, ${esc(b.model)}${b.part_given ? ", part given" : ", part identified by FaultLens"}.${b.mock ? " Offline mode: these are not real results." : ""}</p></div>
+    <div class="scroll"><table><thead><tr><th>Right part</th><th>Right condition</th><th>Wear stage within one</th><th>Severity level exact</th><th>Per check</th></tr></thead>
+      <tbody><tr><td class="num score">${f(b.right_part)}</td><td class="num">${f(b.right_condition)}</td><td class="num">${f(b.wear_stage_within_one)}</td><td class="num">${f(b.severity_level_exact)}</td>
+      <td class="num">${b.avg_seconds}s, ${b.avg_tokens.toLocaleString()} tokens</td></tr></tbody></table></div>
+    <details><summary>Every photo</summary><div class="scroll"><table style="margin-top:8px"><thead><tr><th>Photo</th><th>Kind</th><th>Part</th><th>Condition</th><th>Wear stage</th><th>Severity level</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+
 async function loadReport() {
   if (reportLoaded) return;
   loadVision();
+  loadPartcheck();
   const r = await fetch("/api/pattern-report");
   const body = await r.json();
   if (!r.ok) { $("#patternReport").innerHTML = `<h2>Pattern model</h2><p class="hint">${esc(body.detail)}</p>`; return; }
@@ -1413,7 +1436,7 @@ function partCheckHtml(res, compact) {
     </div>`;
   return `<div style="display:grid;gap:12px">
     <div class="pcverdict"><h2 style="margin:0"><span class="pno">${res.part_no}</span>${esc(res.part_name)}</h2>
-      <span class="pctag ${cls}">${esc(res.condition)}</span><span class="pctag ${res.action === "replace" ? "bad" : res.action === "no_action" ? "good" : "unclear"}">${esc(res.action_text)}</span></div>
+      <span class="pctag ${cls}">${esc(res.condition)}</span><span class="pctag ${res.action === "replace" || res.action === "now" ? "bad" : res.action === "no_action" ? "good" : "unclear"}">${esc(res.action_text)}</span></div>
     <p>${esc(res.what_i_see)}</p>
     ${res.role_text ? `<p><b>${esc(res.role_text)}.</b>${res.fault_titles.length ? ` Points to: ${esc(res.fault_titles.join("; "))}.` : ""}
       ${res.matches_complaint && res.matches_complaint !== "no complaint given" ? ` Matches the complaint: <b>${esc(res.matches_complaint)}</b>.` : ""}</p>` : ""}

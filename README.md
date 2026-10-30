@@ -98,6 +98,18 @@ SAM 3.1 then outlines the part in the photo. In a job, every part photo has a **
 
 When a library photo is checked, that exact photo is left out of the references, so the model cannot match it to itself, and the known answer is shown beside the result.
 
+**Measured** on 15 library photos (wear stages, severity levels, fault photos and healthy parts), with Muse Spark identifying the part itself and each photo and its copies left out of the references (`python -m eval.partcheck_eval`):
+
+| | Result |
+|---|---|
+| Right part | 15 of 15 |
+| Right condition (healthy or damaged) | 13 of 15 |
+| Wear stage within one | 4 of 4 (all exactly right) |
+| Severity level exact | 7 of 9 |
+| Per check | about 16 s, about 10,000 tokens, about 2 US cents |
+
+The misses: an oily flare nut at "developing" was called "advanced", and an indoor coil inlet at "early" (cold and sweating, no frost yet) was called healthy. An air filter at wear stage 2 ("light dust") was called healthy; it got the stage exactly right, but it counts as a condition miss because the library labels every stage above clean as damaged. These are generated photos, so this measures whether the comparison works, not accuracy on real units.
+
 ## Preventive maintenance: how long has it got?
 
 Some parts wear gradually and visibly: the air filter (dust), the outdoor coil (dirt), the outdoor fan hub (rust) and the copper pipes (corrosion). For these, the library holds reference photos of each stage of wear, clean to worst (`library/wear/`). Check a part shows Muse Spark those stages, it says which stage the technician's photo matches, and FaultLens gives that stage's typical remaining life and the preventive action: nothing yet, plan it for the next service, schedule it within weeks, or do it on this visit.

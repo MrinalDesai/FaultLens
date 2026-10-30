@@ -247,7 +247,10 @@ A fault was injected into a stretch of a healthy signal ({signal}), fading in, h
 own pattern model slid a window along the signal and labelled each stretch. You get the true stretch, what the model
 called, its confidence per window, the score, and the readings (or the spectrogram picture for sound).
 
-In 4-6 plain sentences, no jargon:
+In 4-6 short, plain sentences, no jargon:
+- name faults by their title as given (never an id like dirty_condenser_coil), say confidence as a percentage
+  ("88% sure"), round times to whole {unit_word} and readings to one decimal, and always give the unit
+  ("15.6 C", "509 psi", "32 minutes late"),
 - say what changed in the signal and when, quoting actual numbers and times from the data given,
 - say when and why the model caught it, and explain any wrong label or delay (a fault that starts mildly looks
   like a neighbouring fault; each window looks back {window} {unit}, so alarms clear late),
@@ -255,38 +258,54 @@ In 4-6 plain sentences, no jargon:
 Only use numbers that appear in the data. Do not invent readings."""
 
 
+UNITS = {"supply_air_c": "C", "return_air_c": "C", "room_sensor_c": "C", "discharge_psig": "psi", "suction_psig": "psi",
+         "compressor_amps": "A", "outdoor_fan_amps": "A"}
+
+
 def explain_data(r: dict) -> dict:
-    """A compact, checkable summary of one run for the model."""
+    """A compact, checkable summary of one run for the model, in the words and units a technician uses."""
+    from . import knowledge
+    titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
+    name = lambda k: "healthy" if k == "normal" else titles.get(k, k)
     st, found, sc = r["stream"], r["found"], r["score"]
     cfg = SETUP[st["signal"]]
-    data = {"signal": st["signal"], "injected_fault": st["fault"], "true_fault_stretch": st["truth"], "length": st["length"],
-            "unit": cfg["unit"], "window": cfg["window"], "step": cfg["step"],
-            "alarm_rule": f"at least {int(cfg['sure'] * 100)}% sure for {cfg['hold']} windows in a row",
-            "model_called": [{k: s[k] for k in ("start", "end", "label", "confidence")} for s in found["segments"]],
-            "windows": [{"centre": round((w["start"] + w["end"]) / 2, 1), "top": w["top"], "confidence": w["confidence"],
-                         "alarm": w["label"]} for w in found["windows"]],
-            "score": sc}
+    u = {"min": "minutes", "s": "seconds"}[cfg["unit"]]
+    rnd = lambda v: None if v is None else round(v)
+    data = {"signal": st["signal"], "injected_fault": name(st["fault"]),
+            "true_fault_stretch": None if not st["truth"] else {"from": rnd(st["truth"][0]), "to": rnd(st["truth"][1]), "unit": u},
+            "length": f"{st['length']} {u}", "window": f"each check looks back {cfg['window']} {u}, moving {cfg['step']} {u} at a time",
+            "alarm_rule": f"an alarm needs at least {int(cfg['sure'] * 100)}% sure for {cfg['hold']} checks in a row",
+            "model_called": [{"from": rnd(x["start"]), "to": rnd(x["end"]), "called": name(x["label"]),
+                              "average_sure_percent": round(x["confidence"] * 100)} for x in found["segments"]],
+            "each_check": [{"centre": rnd((w["start"] + w["end"]) / 2), "best_guess": name(w["top"]),
+                            "sure_percent": round(w["confidence"] * 100), "alarm_shown": name(w["label"])} for w in found["windows"]],
+            "score": {"right_fault_found": sc["right_fault"],
+                      "share_of_true_stretch_covered_percent": None if sc["coverage"] is None else round(sc["coverage"] * 100),
+                      "caught_late_by": None if sc["delay"] is None else f"{round(sc['delay'])} {u}",
+                      "false_alarms_while_healthy": sc["false_alarms"], "false_alarm_time": f"{round(sc['false_alarm_time'])} {u}",
+                      "wrong_fault_named_inside_stretch_for": f"{round(sc['wrong_label_time'])} {u}",
+                      "slow_to_clear_after_repair_by": f"{round(sc['slow_to_clear'])} {u}"}}
     if st["signal"] == "sensors":
         ch = KEY_READING.get(st["fault"], "discharge_psig")
+        unit = UNITS.get(ch, "")
         vals = [row[ch] for row in st["rows"]]
-        data["key_reading"] = {"name": CHANNEL_NAMES.get(ch, ch),
-                               "every_10_min": [{"minute": m, "value": vals[m]} for m in range(0, len(vals), 10)]}
+        data["key_reading"] = {"name": CHANNEL_NAMES.get(ch, ch), "unit": unit,
+                               "every_10_minutes": [{"minute": m, "value": round(vals[m], 1)} for m in range(0, len(vals), 10)]}
         if ch == "room_sensor_c":
-            data["key_reading"]["reference_every_10_min"] = [{"minute": m, "value": st["rows"][m]["return_air_c"]}
-                                                            for m in range(0, len(vals), 10)]
+            data["key_reading"]["reference_thermometer_every_10_minutes"] = [
+                {"minute": m, "value": round(st["rows"][m]["return_air_c"], 1)} for m in range(0, len(vals), 10)]
     return data
 
 
 def _mock_explanation(d: dict) -> str:
-    u, s = d["unit"], d["score"]
+    s = d["score"]
     if not d["true_fault_stretch"]:
-        return (f"(offline mode) Nothing was injected. The model raised {s['false_alarms']} false alarm(s) "
-                f"over {d['length']} {u}.")
-    a, b = d["true_fault_stretch"]
-    calls = ", ".join(f"{x['label']} {x['start']}-{x['end']} {u} ({int(x['confidence'] * 100)}%)" for x in d["model_called"] if x["label"] != "normal")
-    return (f"(offline mode, no model call) The fault ran from {a} to {b} {u}. The model called: {calls or 'nothing'}. "
-            f"It was first caught {s['delay']} {u} after it began and covered {int((s['coverage'] or 0) * 100)}% of the stretch; "
-            f"each window looks back {d['window']} {u}, so the alarm cleared {s['slow_to_clear']} {u} after the repair.")
+        return (f"(offline mode) Nothing was injected. False alarms while healthy: {s['false_alarms_while_healthy']}.")
+    t = d["true_fault_stretch"]
+    calls = ", ".join(f"{x['called']} {x['from']}-{x['to']} ({x['average_sure_percent']}% sure)" for x in d["model_called"] if x["called"] != "healthy")
+    return (f"(offline mode, no model call) The fault ran from {t['from']} to {t['to']} {t['unit']}. The model called: {calls or 'nothing'}. "
+            f"It was caught {s['caught_late_by']} late and covered {s['share_of_true_stretch_covered_percent']}% of the stretch; "
+            f"it cleared {s['slow_to_clear_after_repair_by']} after the repair.")
 
 
 def explain(fault: str, signal: str, seed: int) -> dict:
@@ -307,7 +326,8 @@ def explain(fault: str, signal: str, seed: int) -> dict:
                     image_part(r["series"]["image"])]
     resp = client().responses.create(model=config.AGENT_MODEL, input=[
         {"role": "system", "content": EXPLAIN_PROMPT.format(equipment=knowledge.load()["equipment"], signal=signal,
-                                                            window=cfg["window"], unit=cfg["unit"])},
+                                                            window=cfg["window"], unit=cfg["unit"],
+                                                            unit_word={"min": "minutes", "s": "seconds"}[cfg["unit"]])},
         {"role": "user", "content": content}])
     usage = {"input_tokens": getattr(resp.usage, "input_tokens", 0), "output_tokens": getattr(resp.usage, "output_tokens", 0)}
     return {"text": (resp.output_text or "").strip(), "model": f"Muse Spark ({config.AGENT_MODEL})",

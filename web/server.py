@@ -155,6 +155,14 @@ def pattern_report():
     return json.loads(pattern.REPORT_PATH.read_text())
 
 
+@app.get("/api/partcheck-report")
+def partcheck_report():
+    path = ROOT / "models" / "partcheck_report.json"
+    if not path.exists():
+        raise HTTPException(404, "Not measured yet. Run: python -m eval.partcheck_eval")
+    return json.loads(path.read_text())
+
+
 @app.get("/api/vision-report")
 def vision_report():
     meta, open_ = ROOT / "models" / "vision_report.json", ROOT / "models" / "vision_report_open.json"
