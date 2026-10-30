@@ -6,6 +6,8 @@ The technician records what they can at the unit: the sound of the outdoor unit,
 
 Built for the Meta Global AI Developer Hackathon 2026 (Indie track).
 
+**Try it live:** https://mrinal-datsci--faultlens-web.us-east.modal.run (the first visit can take up to a minute to start; model calls are limited per visitor to protect the credits).
+
 ## Play a job
 
 The **Play a job** view is a service-job simulator. A customer describes the problem; the fault is hidden.
