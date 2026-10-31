@@ -1271,8 +1271,8 @@ function renderEval({ report, results }) {
     <td>${r.citations ? (r.citations.problems.length ? r.citations.problems.map(p => `<span class="wrong">${esc(p.evidence)}: ${esc(p.problems.join(", "))}</span>`).join("<br>") : `${r.citations.items} of ${r.citations.items} grounded`) : ""}</td></tr>`).join("");
   $("#evalOut").innerHTML = `
     ${report.mock ? '<p class="error">Offline mode: FaultLens rows repeat the rule baseline. Run with live models for real numbers.</p>' : ""}
-<div class="scroll"><table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th><th>Evidence correctly cited</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="hint" style="margin-top:6px"><b>Evidence correctly cited:</b> share of the evidence FaultLens gave that refers only to what it was given: every number it quotes is in the readings, it never quotes a held-back sensor or a picture it was not shown, and every alarm code it names is in the log. Checked automatically, item by item.</p>
+<div class="scroll"><table><thead><tr><th>Method</th><th>Correct</th><th>Easy</th><th>Hard</th><th>Asked for more</th><th>Correct when confident</th><th>Evidence passing the automatic check</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint" style="margin-top:6px"><b>Evidence passing the automatic check:</b> share of the evidence FaultLens gave that refers only to what it was given: every number it quotes is in the readings, it never quotes a held-back sensor or a picture it was not shown, and every alarm code it names is in the log. Checked automatically, item by item. It is a consistency check, not a fact check: it cannot judge whether the reasoning in a sentence is right.</p>
     <details style="margin-top:12px"><summary>Every case</summary>
       <div class="scroll"><table style="margin-top:8px"><thead><tr><th>Case</th><th>Method</th><th>Answer</th><th>Result</th><th>Status</th><th>Evidence check</th></tr></thead><tbody>${detail}</tbody></table></div></details>`;
 }
@@ -1441,9 +1441,20 @@ function openConclude() {
     if (!c) return;
     setBusy(true);
     p.innerHTML = `<p class="thinking">Second model checking FaultLens's call, then revealing the fault…</p>`;
-    const r = await fetch(`/api/game/${job.id}/conclude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ choice: c.value }) });
-    const s = await r.json();
-    setBusy(false);
+    let s;
+    try {
+      const r = await fetch(`/api/game/${job.id}/conclude`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ choice: c.value }) });
+      s = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(s.detail || `The server answered ${r.status}.`);
+    } catch (err) {
+      // Never leave the job stuck: say what went wrong and let the technician try again.
+      p.innerHTML = `<div class="error">The diagnosis could not be submitted: ${esc(err.message === "Failed to fetch" ? "the connection dropped." : err.message)}</div>
+        <div class="row" style="margin-top:12px"><button type="button" class="btn primary" id="retryDiag" style="width:auto">Try again</button></div>`;
+      $("#retryDiag").addEventListener("click", openConclude);
+      return;
+    } finally {
+      setBusy(false);
+    }
     const chk = s.checker;
     p.innerHTML = `<div class="reveal">
       <h2>The fault was: ${esc(s.actual_title)}${s.actual !== "normal" ? ` <span class="hint">(${Math.round(s.severity * 100)}% severity)</span>` : ""}</h2>
@@ -1453,7 +1464,9 @@ function openConclude() {
         <p class="hint">${s.faulty_parts.map(p => `#${p.no} ${esc(p.name)}`).join(", ")}. Outlines ${esc(s.outlined_by)}.</p>` : ""}
       <div class="verdicts">
         <div>You said<br><b class="${s.player_correct ? "right" : "wrong"}">${esc(s.player_title)}</b></div>
-        <div>FaultLens said<br><b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b></div>
+        <div>FaultLens said<br>${s.coach_ready === false
+          ? `<b>Still investigating</b><br><span class="hint">${s.coach_title ? `Leaning towards ${esc(s.coach_title)}, but` : "It was"} not ready to conclude.</span>`
+          : `<b class="${s.coach_correct ? "right" : "wrong"}">${esc(s.coach_title || "no call yet")}</b>`}</div>
         <div>Second check<br><b class="${chk?.verdict === "accept" ? "right" : "wrong"}">${chk ? (chk.verdict === "accept" ? "Agreed with FaultLens" : chk.verdict === "reject" ? "Disagreed with FaultLens" : "Unavailable") : "Not run"}</b>
           ${chk?.checker_model ? `<br><span class="hint">${esc(chk.checker_model)}${chk.checker_heard_sound ? ", listened to the recording" : ""}</span>` : ""}</div>
       </div>

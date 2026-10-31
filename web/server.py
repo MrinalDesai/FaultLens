@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 import uvicorn  # noqa: E402
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.concurrency import run_in_threadpool  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
@@ -225,7 +226,9 @@ def vision_report():
 @app.post("/api/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
     try:
-        return {"text": voice.transcribe(await audio.read())}
+        data = await audio.read()
+        # Model calls run in a worker thread, so one visitor's slow call never holds up the others.
+        return {"text": await run_in_threadpool(voice.transcribe, data)}
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:  # surface the real API error to the page
@@ -273,9 +276,9 @@ async def investigate(
     try:
         if find_parts and ev.frames:
             t = time.time()
-            locate_parts(ev)
+            await run_in_threadpool(locate_parts, ev)
             timings["parts"] = round(time.time() - t, 2)
-        result = run_round(ev, use_checker=use_checker, timings=timings)
+        result = await run_in_threadpool(run_round, ev, use_checker=use_checker, timings=timings)
     except HTTPException:
         raise
     except Exception as e:
@@ -343,7 +346,7 @@ async def part_check(file: UploadFile | None = File(default=None), library_url: 
         complaint = game.JOBS[job_id].complaint
     n = int(part_no) if part_no.strip().isdigit() and int(part_no) in parts.PARTS else None
     try:
-        res = partcheck.check(img, n, complaint, lib_path)
+        res = await run_in_threadpool(partcheck.check, img, n, complaint, lib_path)
     except Exception as e:
         raise HTTPException(502, f"Part check failed: {e}")
     res["photo"] = _data_url(img, "JPEG", 900)
@@ -430,7 +433,7 @@ async def jobcard_read(file: UploadFile | None = File(default=None), card_id: st
     else:
         raise HTTPException(400, "Choose a library card or upload a PDF or photo of a job card.")
     try:
-        res = cardreader.read(img, card_id or None)
+        res = await run_in_threadpool(cardreader.read, img, card_id or None)
     except Exception as e:
         raise HTTPException(502, f"Reading failed: {e}")
     truth = jobcards.truth_for(card_id) if card_id else None
@@ -566,6 +569,8 @@ def game_conclude(job_id: str, body: Conclude):
     titles = {f["fault_id"]: f["title"] for f in knowledge.fault_menu()}
     result.update(player_title=titles.get(body.choice, body.choice),
                   coach_title=titles.get(coach_choice, coach_choice) if coach_choice else None,
+                  # The coach's top guess is only its diagnosis once it said it was ready to conclude.
+                  coach_ready=bool(adv.get("ready_to_conclude")) if adv else None,
                   checker=verdict, fix=knowledge.fault_guide(job.condition)["fix"],
                   sources=knowledge.sources_for(job.condition),
                   faulty_parts=[{"no": n, "name": parts.PARTS[n][0]} for n in parts.parts_for(job.condition, job.variant)],

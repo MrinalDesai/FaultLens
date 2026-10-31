@@ -227,7 +227,7 @@ The cards are generated (`python -m faultlens.jobcards`) with handwriting fonts 
 | **Muse Spark 1.3** | The investigation agent. Looks at the thermal images and the sound spectrogram itself, reads the pattern match, sensor log and notes, calls tools for fault guides, and submits a ranked assessment with evidence for and against each cause. |
 | **SAM 3.1** | Finds named parts (filter, coil, fan, capacitor) in photos so the evidence can point at them. |
 | **Muse Voice Transcribe** | Turns the technician's spoken notes into text. |
-| **Muse Spark Open** (on Baseten) | The independent checker that accepts or rejects each diagnosis. It sees the same thermal images and **listens to the actual sound recording** of the outdoor unit, not just its spectrogram. |
+| **Muse Spark Open** (on Baseten) | The independent checker that accepts or rejects each diagnosis. It sees the same thermal images and the spectrogram of the outdoor unit's sound (a picture of the recording). Sending the raw audio is supported in the code (`CHECKER_AUDIO_FORMAT`) but off by default: in testing, the hosted model did not receive the audio. |
 | **Muse Spark Open** (on Fireworks) | Reads handwritten job cards into organised fields. Falls back to Muse Spark 1.3 if no Fireworks key is set. |
 
 ## The pattern model
@@ -297,15 +297,15 @@ Offline mode with canned agent answers (the pattern model still runs): set `FAUL
 
 **Full investigation, 14 cases** (one easy and one hard per condition; in the hard half the fault is mild and one key sensor is missing), live models, `python -m eval.run_eval --limit 14`:
 
-| Method | Correct | Easy | Hard | Correct when confident | Evidence correctly cited |
+| Method | Correct | Easy | Hard | Correct when confident | Evidence passing the automatic check |
 |---|---|---|---|---|---|
-| Sensor rules only (baseline) | 50% | 71% | 29% | 42% | – |
-| FaultLens, sensors only | 79% | 100% | 57% | 80% | 99% |
-| FaultLens, sensors + note + alarm history + second check | **93%** | 100% | 86% | **100%** | 99% |
+| Sensor rules only (baseline) | 50% (7 of 14) | 71% (5 of 7) | 29% (2 of 7) | 42% (5 of 12) | – |
+| FaultLens, sensors only | 79% (11 of 14) | 100% (7 of 7) | 57% (4 of 7) | 80% (4 of 5) | 99% |
+| FaultLens, sensors + note + alarm history + second check | **93% (13 of 14)** | 100% (7 of 7) | 86% (6 of 7) | **100% (7 of 7)** | 99% |
 
-The one miss was a mild refrigerant leak with a key sensor missing, called healthy; FaultLens said it was not sure and asked for more evidence rather than claiming it. Every time it said it was confident, it was right. Results vary a little between runs (an earlier 14-case run scored 100% on the full method). In one earlier run the citation check also caught the model adding a stray, unrelated sentence to its evidence; the diagnosis was still right.
+The one miss was a mild refrigerant leak with a key sensor missing, called healthy; FaultLens said it was not sure and asked for more evidence rather than claiming it. Every time it said it was confident, it was right. Results vary a little between runs (an earlier 14-case run scored 100% on the full method). In one earlier run the model added a stray, unrelated sentence to its evidence; the automatic check flagged a number in it that was not in the data. The diagnosis was still right.
 
-**How well conclusions cite their evidence.** Every piece of evidence FaultLens gives, for and against each cause, is checked automatically (`eval/citations.py`): every number it quotes must appear in what it was given, it must not quote a sensor channel that was held back, describe a picture it was not shown, or name an alarm code that is not in the log. Saying that something is missing counts as correct. The test set reports the share of evidence that passes, next to accuracy and how often FaultLens asked for more evidence.
+**How well conclusions cite their evidence.** Every piece of evidence FaultLens gives, for and against each cause, is checked automatically (`eval/citations.py`): every number it quotes must appear in what it was given, it must not quote a sensor channel that was held back, describe a picture it was not shown, or name an alarm code that is not in the log. Saying that something is missing counts as correct. The test set reports the share of evidence that passes, next to accuracy and how often FaultLens asked for more evidence. This is a consistency check, not a fact check: it confirms the evidence refers only to what FaultLens was given, but it cannot tell whether a sentence's reasoning is right, and an invented sentence with no numbers, sensors or codes in it would pass.
 
 
 ```bash
