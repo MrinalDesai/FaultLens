@@ -54,6 +54,18 @@ main { max-width: 1240px; margin: 0 auto; padding: 24px; }
 .layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
 @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } main { padding: 16px; } }
 
+.guide { display: grid; gap: 14px; max-width: 900px; margin: 0 auto; }
+.guidehead h2 { font-size: 1.5rem; margin-bottom: 8px; }
+.guidehead p { margin: 0 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.chips span { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px; font-size: .85rem; background: var(--ground); }
+.tour { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+.tour > li { counter-increment: step; }
+.tourhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.tourhead b { font-size: 1.1rem; }
+.tourhead b::before { content: counter(step) ". "; }
+.tourhead .btn { margin-left: auto; width: auto; padding: 6px 18px; }
+.tour ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-m); padding: 20px; }
 .layout > * { min-width: 0; }
 .evidence { position: sticky; top: 16px; display: grid; gap: 20px; }
@@ -405,7 +417,8 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
   <span class="unit" id="unit">Loading…</span>
   <span class="mode" id="mode" hidden>Offline mode: canned answers</span>
   <nav aria-label="Views">
-    <button type="button" data-view="play" aria-pressed="true">Play a job</button>
+    <button type="button" data-view="guide" aria-pressed="true">Start here</button>
+    <button type="button" data-view="play" aria-pressed="false">Play a job</button>
     <button type="button" data-view="explore" aria-pressed="false">Explore faults</button>
     <button type="button" data-view="partcheck" aria-pressed="false">Check a part</button>
     <button type="button" data-view="lab" aria-pressed="false">Anomaly lab</button>
@@ -416,8 +429,41 @@ section > *, .panel, .scroll, .panel > * { min-width: 0; max-width: 100%; }
 </header>
 
 <main>
+  <!-- START HERE: a guided tour for first-time visitors and judges -->
+  <section id="view-guide" class="guide">
+    <div class="panel guidehead">
+      <h2>FaultLens: a diagnostic assistant for split AC technicians</h2>
+      <p>A customer's AC is not cooling. Is it the capacitor, a gas leak, the fan or the filter? FaultLens works through the job with the technician one check at a time, reads the evidence (sound, thermal images, readings, photos, old job cards, spoken notes), stops unsafe steps, and says what to check next, or that it is not sure yet.</p>
+      <div class="chips"><span>Muse Spark: reasons and coaches</span><span>SAM 3.1: finds parts in photos</span><span>Muse Voice Transcribe: spoken notes</span><span>Muse Spark Open: second check, reads handwriting</span></div>
+      <p class="hint">A five-minute tour below. Each step has a button that takes you to the right place. Model answers take 10 to 30 seconds.</p>
+    </div>
+    <ol class="tour">
+      <li class="panel"><div class="tourhead"><b>Play a job</b><span class="hint">about 2 minutes</span><button type="button" class="btn" data-go="play">Go</button></div>
+        <ol><li>Click <b>Start a mystery job</b>. You are the technician; the fault is hidden.</li>
+          <li>Follow FaultLens's suggestion (the button under each of its messages), or pick any check from the list on the left.</li>
+          <li>Try something unsafe on purpose, such as <b>Inspect the capacitors</b> while the unit is running: it is stopped, and it costs points.</li>
+          <li>Type a question in <b>Ask FaultLens</b> at the bottom, for example "why not the fan motor?".</li>
+          <li>Click <b>Make the diagnosis</b>. The result shows your answer, FaultLens's, a second model's review, the faulty part outlined, and public guidance for the fix.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Check a part</b><span class="hint">about 1 minute</span><button type="button" class="btn" data-go="partcheck">Go</button></div>
+        <ol><li>Pick a photo from the library on the left, or upload your own photo of an AC part.</li>
+          <li>FaultLens names the part, says whether it is damaged and what to do, and whether the damage <b>causes</b> the fault or is only a <b>symptom</b> of one elsewhere.</li>
+          <li>For filters, the outdoor coil, the fan hub and pipes, it places the photo on a wear scale and gives the typical remaining life: preventive maintenance.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Investigate</b><span class="hint">about 1 minute</span><button type="button" class="btn" data-go="investigate">Go</button></div>
+        <ol><li>Choose a sample under <b>Or start from a library sample</b>, or click <b>Record a voice note</b> and describe a problem (Hindi and English mixed works).</li>
+          <li>Click <b>Investigate</b>. It ranks the possible causes with evidence for and against each, and asks for one specific check when it is not sure.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Anomaly lab</b><span class="hint">30 seconds</span><button type="button" class="btn" data-go="lab">Go</button></div>
+        <ol><li>Pick a fault to inject into a healthy unit and watch FaultLens's own pattern model find when it starts and ends (no model credits used).</li>
+          <li>Click <b>Ask FaultLens to explain</b> for a plain-language summary.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>Job cards</b><span class="hint">30 seconds</span><button type="button" class="btn" data-go="cards">Go</button></div>
+        <ol><li>Pick a handwritten job card. Muse Spark Open reads the handwriting into fields, so a unit's history is not lost.</li></ol></li>
+      <li class="panel"><div class="tourhead"><b>How it was tested</b><span class="hint">1 minute</span><button type="button" class="btn" data-go="testset">Go</button></div>
+        <ol><li>Measured results: 93% correct on the full test set against 50% for simple sensor rules, right every time it said it was confident, and 15 of 15 parts identified from photos.</li></ol></li>
+    </ol>
+    <div class="panel"><p class="hint"><b>Honest notes.</b> The sound, thermal images and sensor logs are simulated from physical models of each fault and are labelled as simulated everywhere; photos are generated or from the web and labelled with their source. On this public demo, model calls are limited per visitor and per day to protect the credits. <b>Explore faults</b> shows the full library of simulated signals for every fault.</p></div>
+  </section>
+
   <!-- PLAY A JOB -->
-  <section id="view-play">
+  <section id="view-play" hidden>
     <div id="playStart" class="panel start">
       <div>
         <h2>Take a service job</h2>
@@ -643,10 +689,12 @@ const title = c => state.titles[c] || c;
 /* ---------- views ---------- */
 function showView(name) {
   document.querySelectorAll(".bar nav button").forEach(x => x.setAttribute("aria-pressed", x.dataset.view === name));
-  ["play", "explore", "partcheck", "lab", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  ["guide", "play", "explore", "partcheck", "lab", "cards", "investigate", "testset"].forEach(v => $("#view-" + v).hidden = v !== name);
+  window.scrollTo(0, 0);
   if (name === "testset") loadReport();
 }
 document.querySelectorAll(".bar nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => showView(b.dataset.go)));
 
 /* ---------- profile + library ---------- */
 fetch("/api/profile").then(r => r.json()).then(p => {

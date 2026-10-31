@@ -8,6 +8,17 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie track).
 
 **Try it live:** https://mrinal-datsci--faultlens-web.us-east.modal.run (the first visit can take up to a minute to start; model calls are limited per visitor to protect the credits).
 
+## A five-minute tour
+
+The live link opens on **Start here**, which has these steps with a button for each.
+
+1. **Play a job** (2 min). Click **Start a mystery job**; you are the technician and the fault is hidden. Follow FaultLens's suggested next check, or pick your own. Try **Inspect the capacitors** while the unit is running: the step is stopped and costs points. Ask a question in **Ask FaultLens** ("why not the fan motor?"). Click **Make the diagnosis** to see your answer, FaultLens's, a second model's review, the faulty part outlined and public guidance for the fix.
+2. **Check a part** (1 min). Pick a library photo or upload your own photo of an AC part. FaultLens names the part, says whether to replace it, and whether the damage causes the fault or is only a symptom of one elsewhere. For filters, the outdoor coil, the fan hub and pipes it also gives the wear stage and typical remaining life.
+3. **Investigate** (1 min). Pick a library sample, or record a voice note (Hindi and English mixed works), and click **Investigate**. It ranks causes with evidence for and against, and asks for one specific check when it is not sure.
+4. **Anomaly lab** (30 s). Inject a fault into a healthy unit and watch the pattern model find it; no model credits used.
+5. **Job cards** (30 s). Pick a handwritten card; Muse Spark Open reads it into fields.
+6. **How it was tested** (1 min). The measured results.
+
 ## Play a job
 
 The **Play a job** view is a service-job simulator. A customer describes the problem; the fault is hidden.
