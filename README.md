@@ -8,7 +8,82 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie track).
 
 **Try it live:** https://mrinal-datsci--faultlens-web.us-east.modal.run (the first visit can take up to a minute to start; model calls are limited per visitor to protect the credits).
 
+**Demo video (3 min):** https://youtu.be/1nc7WAFhkBE
+
 **Judges' guide (PDF, 8 pages, with screenshots):** [docs/FaultLens_Judges_Guide.pdf](docs/FaultLens_Judges_Guide.pdf)
+
+## Screens
+
+Real screenshots from the live app. Click a heading to expand it.
+
+<details>
+<summary><b>Start here: the tour judges see first</b></summary>
+
+
+
+<p><img src="docs/screens/start_here.jpg" alt="The Start here page: what FaultLens does, the four Meta models, and a guided tour" width="900"><br><em>The Start here page: what FaultLens does, the four Meta models, and a guided tour</em></p>
+
+</details>
+
+<details>
+<summary><b>Play a job: one check at a time, with a safety stop and a second check</b></summary>
+
+
+
+<p><img src="docs/screens/job_card_read.jpg" alt="The last visit's handwritten job card, read into fields by Muse Spark Open" width="620"><br><em>The last visit's handwritten job card, read into fields by Muse Spark Open</em></p>
+<p><img src="docs/screens/job_ask_why.jpg" alt="Asking why not the fan motor: it answers from the evidence collected" width="620"><br><em>Asking "why not the fan motor?": it answers from the evidence collected</em></p>
+<p><img src="docs/screens/job_result.jpg" alt="The result: your answer, FaultLens's, the second model's review and the faulty parts outlined" width="620"><br><em>The result: your answer, FaultLens's, the second model's review and the faulty parts outlined</em></p>
+
+</details>
+
+<details>
+<summary><b>Check a part: real web photos, cause or symptom, and how far the damage has gone</b></summary>
+
+These four photos are real photos from the web that FaultLens had never seen; it identified each part by itself.
+
+<p><img src="docs/screens/part_coil.jpg" alt="Iced indoor coil: advanced, but a symptom of another fault, not the cause" width="900"><br><em>Iced indoor coil: advanced, but a symptom of another fault, not the cause</em></p>
+<p><img src="docs/screens/part_filter.jpg" alt="Dusty air filter: wear stage 5 of 5, clean it on this visit" width="900"><br><em>Dusty air filter: wear stage 5 of 5, clean it on this visit</em></p>
+<p><img src="docs/screens/part_fan.jpg" alt="Rusted fan blade: wear stage 5 of 5, replace now" width="900"><br><em>Rusted fan blade: wear stage 5 of 5, replace now</em></p>
+<p><img src="docs/screens/part_capacitor.jpg" alt="Leaking run capacitor: advanced, and it is the cause, so replace it" width="900"><br><em>Leaking run capacitor: advanced, and it is the cause, so replace it</em></p>
+
+</details>
+
+<details>
+<summary><b>Investigate: a voice note or a photo, ranked causes and the one check that settles it</b></summary>
+
+
+
+<p><img src="docs/screens/investigate_voice.jpg" alt="Only a spoken note: not certain yet, the causes ranked, one check asked for" width="620"><br><em>Only a spoken note: "not certain yet", the causes ranked, one check asked for</em></p>
+<p><img src="docs/screens/investigate_photo.jpg" alt="A photo and a note: the fan side ranked first, and a red safety rule before the next check" width="900"><br><em>A photo and a note: the fan side ranked first, and a red safety rule before the next check</em></p>
+
+</details>
+
+<details>
+<summary><b>Anomaly lab: inject a fault, watch the pattern model find it</b></summary>
+
+
+
+<p><img src="docs/screens/anomaly_lab.jpg" alt="An outdoor fan failure injected into 6 hours of readings, found and explained; measured over 20 runs per fault below" width="900"><br><em>An outdoor fan failure injected into 6 hours of readings, found and explained; measured over 20 runs per fault below</em></p>
+
+</details>
+
+<details>
+<summary><b>Job cards: handwriting into fields</b></summary>
+
+
+
+<p><img src="docs/screens/job_cards.jpg" alt="A handwritten job card read by Muse Spark Open: 15 of 15 fields right" width="900"><br><em>A handwritten job card read by Muse Spark Open: 15 of 15 fields right</em></p>
+
+</details>
+
+<details>
+<summary><b>How it was tested</b></summary>
+
+
+
+<p><img src="docs/screens/how_tested.jpg" alt="The measured results, also on the How it was tested tab" width="700"><br><em>The measured results, also on the How it was tested tab</em></p>
+
+</details>
 
 ## A five-minute tour
 
