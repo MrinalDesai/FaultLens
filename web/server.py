@@ -157,6 +157,12 @@ def index():
     return FileResponse(INDEX)
 
 
+@app.get("/guide.pdf")
+def judges_guide():
+    return FileResponse(ROOT / "docs" / "FaultLens_Judges_Guide.pdf", media_type="application/pdf",
+                        filename="FaultLens_Judges_Guide.pdf")
+
+
 @app.get("/api/profile")
 def profile():
     p = knowledge.load()

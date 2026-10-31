@@ -8,6 +8,8 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie track).
 
 **Try it live:** https://mrinal-datsci--faultlens-web.us-east.modal.run (the first visit can take up to a minute to start; model calls are limited per visitor to protect the credits).
 
+**Judges' guide (PDF, 8 pages, with screenshots):** [docs/FaultLens_Judges_Guide.pdf](docs/FaultLens_Judges_Guide.pdf)
+
 ## A five-minute tour
 
 The live link opens on **Start here**, which has these steps with a button for each.
