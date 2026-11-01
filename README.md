@@ -62,11 +62,9 @@ Each job goes to the tool that does it best. A trained pattern model reads the s
 
 **How far the damage has gone, from one real photo each:**
 
-| Air filter: wear stage 5 of 5, clean it now | Fan blade: wear stage 5 of 5, replace now |
-|---|---|
-| <img src="docs/screens/stage_filter.jpg" alt="Air filter matched to wear stage 5 of 5" width="420"> | <img src="docs/screens/stage_fan.jpg" alt="Fan blade matched to wear stage 5 of 5" width="420"> |
-| **Run capacitor: advanced, and it is the cause** | **Indoor coil: advanced, but only a symptom** |
-| <img src="docs/screens/stage_cap.jpg" alt="Capacitor matched to the advanced level" width="420"> | <img src="docs/screens/stage_coil.jpg" alt="Coil matched to the advanced level of frost" width="420"> |
+| Air filter: wear stage 5 of 5, clean it now | Run capacitor: advanced, and it is the cause | Indoor coil: advanced, but only a symptom |
+|---|---|---|
+| <img src="docs/screens/stage_filter.jpg" alt="Air filter matched to wear stage 5 of 5" width="280"> | <img src="docs/screens/stage_cap.jpg" alt="Capacitor matched to the advanced level" width="280"> | <img src="docs/screens/stage_coil.jpg" alt="Coil matched to the advanced level of frost" width="280"> |
 
 **Safety is fixed code, and every call gets a second check:**
 
@@ -104,11 +102,10 @@ Real screenshots from the live app. Click a heading to expand it.
 <details>
 <summary><b>Check a part: real web photos, cause or symptom, and how far the damage has gone</b></summary>
 
-These four photos are real photos from the web that FaultLens had never seen; it identified each part by itself.
+These are public photos found on the web, used only to test FaultLens on pictures it had never seen; it identified each part by itself. They are not part of the app's library.
 
 <p><img src="docs/screens/part_coil.jpg" alt="Iced indoor coil: advanced, but a symptom of another fault, not the cause" width="900"><br><em>Iced indoor coil: advanced, but a symptom of another fault, not the cause</em></p>
 <p><img src="docs/screens/part_filter.jpg" alt="Dusty air filter: wear stage 5 of 5, clean it on this visit" width="900"><br><em>Dusty air filter: wear stage 5 of 5, clean it on this visit</em></p>
-<p><img src="docs/screens/part_fan.jpg" alt="Rusted fan blade: wear stage 5 of 5, replace now" width="900"><br><em>Rusted fan blade: wear stage 5 of 5, replace now</em></p>
 <p><img src="docs/screens/part_capacitor.jpg" alt="Leaking run capacitor: advanced, and it is the cause, so replace it" width="900"><br><em>Leaking run capacitor: advanced, and it is the cause, so replace it</em></p>
 
 </details>
@@ -451,6 +448,6 @@ eval/                      Agent test set, runner and evidence-citation check
 
 ---
 
-## Built during the hackathon (Oct 26 - Nov 4, 2026)
+## Built during the hackathon (Oct 27 - Nov 4, 2026)
 
 Everything in this repository was written during the hackathon. The commit history shows the timeline.
