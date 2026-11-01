@@ -1,16 +1,81 @@
-# FaultLens
+<p align="center"><img src="docs/banner.png" alt="FaultLens: a diagnostic agent for field technicians. Sound, thermal images, photos and visual observations" width="100%"></p>
 
-A diagnostic agent that helps technicians work out why a split air conditioner has failed, and what to check next.
+<p align="center"><b>A diagnostic agent for field technicians: Muse Spark reasons, SAM 3.1 finds parts, fixed rules own safety, and a second model checks every call.</b></p>
 
-The technician records what they can at the unit: the sound of the outdoor unit, thermal images of the indoor coil and the outdoor unit, a sensor log, photos and spoken notes. FaultLens compares the signals with a library of fault signatures, combines them into one ranked answer, explains which measurements point where, and recommends the next check. When the signals disagree or the evidence is thin, it asks for one specific observation instead of guessing. A second model reviews every diagnosis, and fixed safety rules gate any step that needs the power isolated or refrigerant handled.
+<p align="center">
+<a href="https://mrinal-datsci--faultlens-web.us-east.modal.run"><img src="https://img.shields.io/badge/Live%20demo-open%20the%20app-1F5FBF" alt="Live demo"></a>
+<a href="https://youtu.be/1nc7WAFhkBE"><img src="https://img.shields.io/badge/Demo%20video-3%20min-E5534B?logo=youtube&logoColor=white" alt="Demo video"></a>
+<a href="docs/FaultLens_Judges_Guide.pdf"><img src="https://img.shields.io/badge/Judges'%20guide-PDF%2C%208%20pages-6E7781" alt="Judges' guide"></a>
+</p>
+<p align="center">
+<img src="https://img.shields.io/badge/Meta-Muse%20Spark-0866FF" alt="Muse Spark">
+<img src="https://img.shields.io/badge/Meta-SAM%203.1-0866FF" alt="SAM 3.1">
+<img src="https://img.shields.io/badge/Meta-Muse%20Voice%20Transcribe-0866FF" alt="Muse Voice Transcribe">
+<img src="https://img.shields.io/badge/Meta-Muse%20Spark%20Open-0866FF" alt="Muse Spark Open">
+<img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+<img src="https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+<img src="https://img.shields.io/badge/Hosted%20on-Modal-16222B" alt="Hosted on Modal">
+</p>
 
-Built for the Meta Global AI Developer Hackathon 2026 (Indie track).
+<p align="center"><img src="docs/screens/part_coil.jpg" alt="Check a part on a real photo of an iced coil: a symptom of another fault, not the cause" width="85%"><br><em>A real photo it had never seen: the iced coil is a symptom of another fault, not the cause, so the coil isn't replaced.</em></p>
 
-**Try it live:** https://mrinal-datsci--faultlens-web.us-east.modal.run (the first visit can take up to a minute to start; model calls are limited per visitor to protect the credits).
+A field technician on site has to decide what is wrong from what they can see, hear and measure, usually alone. FaultLens takes that evidence (the sound of the unit, thermal images, a sensor log, photos of parts, the unit's fault history, old handwritten job cards and spoken notes), ranks the likely causes with the evidence for and against each, and gives the one check to do next. When the evidence is thin it says so and asks for that check instead of guessing.
 
-**Demo video (3 min):** https://youtu.be/1nc7WAFhkBE
+**Worked example:** the split air conditioner, with 6 common faults and 18 parts. The method is not AC-specific; new equipment needs its own fault guide, reference photos and signal patterns.
 
-**Judges' guide (PDF, 8 pages, with screenshots):** [docs/FaultLens_Judges_Guide.pdf](docs/FaultLens_Judges_Guide.pdf)
+Built solo for the **Meta Global AI Developer Hackathon 2026** (Indie track).
+
+| What | Where |
+|---|---|
+| **Live app** | https://mrinal-datsci--faultlens-web.us-east.modal.run (first visit can take up to a minute to start; model calls are limited per visitor) |
+| **Demo video (3 min)** | https://youtu.be/1nc7WAFhkBE |
+| **Judges' guide (PDF, 8 pages)** | [docs/FaultLens_Judges_Guide.pdf](docs/FaultLens_Judges_Guide.pdf) |
+
+---
+
+## Design principle
+
+> Rules own safety, the pattern model owns the signals, Muse Spark owns the reasoning, and a second model owns the check.
+
+Each job goes to the tool that does it best. A trained pattern model reads the sound, thermal images and sensor log in milliseconds; Muse Spark weighs everything together and explains it; fixed code, not a model, decides whether a step is safe; and a different model reviews the final call. Every answer shows its evidence, and every number in this README was measured.
+
+---
+
+## How a diagnosis works
+
+```
+ sound · thermal · readings ──► pattern model ────┐
+ photos of parts ────────────► SAM 3.1 ───────────┤
+ spoken note ────────────────► Muse Voice ────────┼──► Muse Spark ──► safety rules ──► second check ──► cause + next check
+ old job card ───────────────► Muse Spark Open ───┘    (reasons)      (fixed code)     (Muse Spark Open)
+```
+
+1. **Read the evidence.** Photos go through SAM 3.1 to find the parts; spoken notes through Muse Voice Transcribe; old job cards through Muse Spark Open.
+2. **Match patterns.** FaultLens's own model (gradient-boosted trees, one per signal, combined) scores every fault from the sound, thermal images and sensor log.
+3. **Reason.** Muse Spark looks at the images itself, reads the pattern match, notes and history, looks up fault guides, and ranks the causes with evidence for and against each.
+4. **Gate for safety.** Any next step that opens the unit or handles refrigerant is checked by fixed rules: isolate the power first, certified technicians only.
+5. **Check.** Muse Spark Open reviews the diagnosis against the same evidence and agrees or disagrees.
+
+**Measured:** 93% correct on the full test set (13 of 14) against 50% for simple sensor rules, and right every time it said it was confident (7 of 7). Details under [Evaluation](#evaluation).
+
+### In pictures
+
+**How far the damage has gone, from one real photo each:**
+
+| Air filter: wear stage 5 of 5, clean it now | Fan blade: wear stage 5 of 5, replace now |
+|---|---|
+| <img src="docs/screens/stage_filter.jpg" alt="Air filter matched to wear stage 5 of 5" width="420"> | <img src="docs/screens/stage_fan.jpg" alt="Fan blade matched to wear stage 5 of 5" width="420"> |
+| **Run capacitor: advanced, and it is the cause** | **Indoor coil: advanced, but only a symptom** |
+| <img src="docs/screens/stage_cap.jpg" alt="Capacitor matched to the advanced level" width="420"> | <img src="docs/screens/stage_coil.jpg" alt="Coil matched to the advanced level of frost" width="420"> |
+
+**Safety is fixed code, and every call gets a second check:**
+
+<p><img src="docs/screens/crop_safety.jpg" alt="Not certain yet: the one check needed, and a red safety rule before it" width="700"><br><em>When it isn't sure it asks for one check, and a fixed safety rule appears before any step that touches live parts.</em></p>
+
+<p><img src="docs/screens/crop_verdict.jpg" alt="You said, FaultLens said, second check agreed" width="620"><br><em>The end of a job: the technician's answer, FaultLens's, and the independent check by Muse Spark Open.</em></p>
+
+
+---
 
 ## Screens
 
@@ -85,6 +150,8 @@ These four photos are real photos from the web that FaultLens had never seen; it
 
 </details>
 
+---
+
 ## A five-minute tour
 
 The live link opens on **Start here**, which has these steps with a button for each.
@@ -95,6 +162,8 @@ The live link opens on **Start here**, which has these steps with a button for e
 4. **Anomaly lab** (30 s). Inject a fault into a healthy unit and watch the pattern model find it; no model credits used.
 5. **Job cards** (30 s). Pick a handwritten card; Muse Spark Open reads it into fields.
 6. **How it was tested** (1 min). The measured results.
+
+---
 
 ## Play a job
 
@@ -114,6 +183,8 @@ would find on that unit, and every job is generated fresh, so sound, temperature
 
 Photos and the exploded-view diagram are added in `library/` (see `library/PHOTOS.md`).
 
+---
+
 ## Try it in the browser
 
 The **Explore faults** view is a working simulation of every fault. Each fault has the same four signals:
@@ -126,6 +197,8 @@ The **Explore faults** view is a working simulation of every fault. Each fault h
 | Sensor log | `sensors.csv` | Air temperatures, pressures and currents, one row a minute |
 
 Pick a fault, listen to it, compare the thermal images, then press **Investigate this sample**. Or download the files and upload them under **Investigate**, which is exactly what a technician does in the field with their own recordings.
+
+---
 
 ## Anomaly lab: inject a fault, then find it
 
@@ -148,6 +221,8 @@ After a run, **Ask FaultLens to explain** sends Muse Spark the run's data (the t
 
 Sound alone misses half the clogged filters: a blocked indoor filter barely changes how the outdoor unit sounds. That is why FaultLens combines signals. Remeasure with your trained model: `python -c "from faultlens import anomaly; anomaly.measure(20)"` (about 3 minutes).
 
+---
+
 ## Severity: how far a fault has developed
 
 Every simulated unit has a severity, from early (under 45%) through developing (45-80%) to advanced (80-100%). It changes everything about that unit: the readings, the sound, both thermal images, the alarm log and the photos. FaultLens is never told the severity; it has to find the fault anyway, and early faults are the hard ones (98% overall, 94% on mild faults).
@@ -156,6 +231,8 @@ Every sign that changes as a fault develops has three photos, early, developing 
 
 The app shows it plainly: a bar with the sample's severity on it, each reading marked within normal, slightly out or far out against its normal range, and photos that match. Gradual wear (filter dust, coil dirt, fan-hub rust, pipe corrosion) shows the matching wear stage; signs that only appear once a fault is bad enough (frost on the coil) are left out below that point, with the reason; sudden failures (a swollen capacitor, a burnt winding) look the same at any severity and are marked so.
 
+---
+
 ## Alarm history
 
 Every unit also has its own fault log: the last 7 days of error codes, as a technician reads them from the display. The codes are a small demo table (each manufacturer uses its own) and the log is simulated from the fault, like the other signals.
@@ -163,6 +240,8 @@ Every unit also has its own fault log: the last 7 days of error codes, as a tech
 The log is indirect evidence, as on a real unit. **E4** (outdoor too hot) fits a stopped outdoor fan and a dirty outdoor coil alike. A refrigerant leak only trips **E6** once it is bad. A room sensor that has slipped onto the cold coil reads a real but wrong temperature, so it leaves no code at all. FaultLens is told to treat the log as what the unit protected itself from, not as the answer.
 
 It appears in Explore (with `alarms.csv` to download), in investigations (upload any CSV with a `code` column), in the job as **Read the unit's fault history**, and in the test set.
+
+---
 
 ## Parts and photos
 
@@ -173,6 +252,8 @@ In a job, the specific cause is picked per unit (for example, the outdoor fan ha
 The outlines come from **SAM 3.1** once you run `python -m faultlens.parts --sam` (it saves `library/diagram/parts_sam.json`). Until then, boxes drawn by hand are used, and the app says which. SAM is given each part's name and returns every match; FaultLens keeps the one on the right part, which matters on a diagram with two capacitors.
 
 The exploded view and all part and fault photos are generated with ChatGPT, and labelled as generated wherever they appear.
+
+---
 
 ## Check a part from a photo
 
@@ -200,6 +281,8 @@ When a library photo is checked, that exact photo is left out of the references,
 
 The misses: an oily flare nut at "developing" was called "advanced", and an indoor coil inlet at "early" (cold and sweating, no frost yet) was called healthy. An air filter at wear stage 2 ("light dust") was called healthy; it got the stage exactly right, but it counts as a condition miss because the library labels every stage above clean as damaged. These are generated photos, so this measures whether the comparison works, not accuracy on real units.
 
+---
+
 ## Preventive maintenance: how long has it got?
 
 Some parts wear gradually and visibly: the air filter (dust), the outdoor coil (dirt), the outdoor fan hub (rust) and the copper pipes (corrosion). For these, the library holds reference photos of each stage of wear, clean to worst (`library/wear/`). Check a part shows Muse Spark those stages, it says which stage the technician's photo matches, and FaultLens gives that stage's typical remaining life and the preventive action: nothing yet, plan it for the next service, schedule it within weeks, or do it on this visit.
@@ -207,6 +290,8 @@ Some parts wear gradually and visibly: the air filter (dust), the outdoor coil (
 The remaining life comes from a table (`faultlens/knowledge/split_ac_wear.yaml`), not from the model, and the app says so: it is a typical range for a split AC in normal use, not a measurement of that unit. Early stages count as normal ageing, not a fault. Capacitors and motor windings fail suddenly, so they have no wear scale.
 
 When a stage photo from the library is checked, that stage's picture (and any copy of it) is left out, so FaultLens has to place it between its neighbours; it counts as right when it lands within one stage.
+
+---
 
 ## Job cards: reading handwriting
 
@@ -220,6 +305,8 @@ For the library cards the true contents are known, so each field is marked right
 
 The cards are generated (`python -m faultlens.jobcards`) with handwriting fonts (Caveat, Kalam, Nanum Pen Script, Homemade Apple, all under the SIL Open Font License) and scan effects. Customers and the company "Coolfix Home Services (demo)" are fictional.
 
+---
+
 ## How it uses Meta's models
 
 | Model | Job in FaultLens |
@@ -229,6 +316,8 @@ The cards are generated (`python -m faultlens.jobcards`) with handwriting fonts 
 | **Muse Voice Transcribe** | Turns the technician's spoken notes into text. |
 | **Muse Spark Open** (on Baseten) | The independent checker that accepts or rejects each diagnosis. It sees the same thermal images and the spectrogram of the outdoor unit's sound (a picture of the recording). Sending the raw audio is supported in the code (`CHECKER_AUDIO_FORMAT`) but off by default: in testing, the hosted model did not receive the audio. |
 | **Muse Spark Open** (on Fireworks) | Reads handwritten job cards into organised fields. Falls back to Muse Spark 1.3 if no Fireworks key is set. |
+
+---
 
 ## The pattern model
 
@@ -250,6 +339,8 @@ No single signal is reliable on its own; combined, they are, and accuracy stays 
 
 Training and testing take about 2 minutes on a laptop (`python -m faultlens.pattern`).
 
+---
+
 ## Public documentation
 
 Each fault guide links to the public sources that back it, shown on the fault page, in the reveal and given to the agent with the guide (`faultlens/knowledge/split_ac_sources.yaml`):
@@ -261,6 +352,8 @@ Each fault guide links to the public sources that back it, shown on the fault pa
 
 Each link says what that source actually covers. Where no public source covers a step (measuring a run capacitor against its rating, testing the room sensor's resistance, spinning the fan blade by hand), the guide says it comes from general service practice.
 
+---
+
 ## Data: what is simulated and what is not
 
 - **Sound, thermal images and sensor logs are simulated.** They are generated by `faultlens/simulate.py` and `faultlens/sensors.py` from simple physical models of how each fault changes the unit (for example: a stopped outdoor fan removes the blade tone, heats the coil from the top down and raises head pressure). Every unit differs: severity, outdoor temperature, installation, camera calibration and background noise all vary. Every simulated file is labelled "Simulated" in the app and in its `info.json`.
@@ -269,6 +362,8 @@ Each link says what that source actually covers. Where no public source covers a
 - The fault guide in `faultlens/knowledge/split_ac.yaml` was written for this project from general service practice. No manual text is copied.
 
 Because the model is trained on simulated signatures, its accuracy shows that the method works and that combining signals helps. It does not show field accuracy. The agent is told this and treats the pattern match as one piece of evidence.
+
+---
 
 ## Setup
 
@@ -285,6 +380,8 @@ The reference library is included. To rebuild or enlarge it: `python -m faultlen
 
 Offline mode with canned agent answers (the pattern model still runs): set `FAULTLENS_MOCK=1` in `.env`.
 
+---
+
 ## Public demo on Modal
 
 `modal_app.py` deploys the app as a public web page (`pip install modal`, `modal setup`, then `modal deploy modal_app.py`). Your `.env` is sent to Modal as a secret and is never copied into the image; the pattern model is trained inside the image. On the public demo (`PUBLIC_DEMO=1`):
@@ -292,6 +389,8 @@ Offline mode with canned agent answers (the pattern model still runs): set `FAUL
 - every request that can call a paid model counts as one call; each visitor gets 60 an hour (`VISITOR_CALLS_PER_HOUR`) and the site gets 800 a day (`DAILY_CALLS`), after which the page says so;
 - the full test-set run is switched off and the last saved run with live models is shown instead;
 - one container serves everyone, so a job's state and the limits are kept in one place.
+
+---
 
 ## Evaluation
 
@@ -313,6 +412,8 @@ python -m faultlens.pattern               # pattern model: train + test, report 
 python -m eval.make_cases                 # 28 agent test cases, half mild with a key sensor missing
 python -m eval.run_eval --limit 14        # agent vs rule baseline; report in data/runs/
 ```
+
+---
 
 ## Project layout
 
@@ -347,6 +448,8 @@ library/                   Reference library, one folder per condition; library/
 models/                    Pattern model report (the model itself is rebuilt locally)
 eval/                      Agent test set, runner and evidence-citation check
 ```
+
+---
 
 ## Built during the hackathon (Oct 26 - Nov 4, 2026)
 
